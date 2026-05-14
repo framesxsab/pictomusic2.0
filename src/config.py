@@ -90,3 +90,55 @@ APP_TITLE = "Pictomusic"
 APP_ICON = "\U0001f3b5"
 APP_SUBTITLE = "Upload an image to discover the perfect soundtrack"
 APP_VERSION_TAG = "v3.0 Neural Core Active"
+HERO_TITLE = "WHERE SIGHT<br>BECOMES SOUND"
+
+# --- Mood inference thresholds (preprocess.py) ---
+MOOD_THRESHOLDS = {
+    "energetic_happy_valence": 0.65,
+    "energetic_happy_energy": 0.65,
+    "sad_valence": 0.3,
+    "sad_energy": 0.4,
+    "calm_energy": 0.35,
+    "calm_acousticness": 0.6,
+    "danceable": 0.7,
+    "acoustic": 0.7,
+    "romantic_valence_low": 0.35,
+    "romantic_valence_high": 0.65,
+    "romantic_energy_low": 0.35,
+    "romantic_energy_high": 0.65,
+    "romantic_acousticness": 0.4,
+    "instrumental": 0.5,
+    "soothing_energy": 0.45,
+    "soothing_acousticness": 0.5,
+    "soothing_valence": 0.3,
+}
+
+# --- Recommender constants ---
+MOOD_SIMILARITY_THRESHOLD = float(os.getenv("PICTOMUSIC_MOOD_SIM_THRESHOLD", "0.15"))
+MOOD_TOP_N = int(os.getenv("PICTOMUSIC_MOOD_TOP_N", "2"))
+MOOD_FETCH_MULTIPLIER = int(os.getenv("PICTOMUSIC_MOOD_FETCH_MULT", "3"))
+HTTP_CHUNK_SIZE = 8192
+
+# --- External service URLs ---
+YOUTUBE_SEARCH_URL = "https://www.youtube.com/results?search_query="
+SPOTIFY_TRACK_URL = "https://open.spotify.com/track/"
+SPOTIFY_SEARCH_URL = "https://open.spotify.com/search/"
+GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+
+# --- CSP policy domains ---
+CSP_IMG_SOURCES = "https://*.scdn.co https://* data:"
+CSP_MEDIA_SOURCES = "https://p.scdn.co https://*.scdn.co"
+CSP_STYLE_SOURCES = "'unsafe-inline' https://fonts.googleapis.com"
+CSP_FONT_SOURCES = "https://fonts.gstatic.com"
+CSP_FRAME_ANCESTORS = "https://huggingface.co https://*.hf.space"
+
+# --- Language display map (ISO code -> display name) ---
+LANGUAGE_DISPLAY_MAP = {
+    "hi": "Hindi", "ta": "Tamil", "te": "Telugu", "pa": "Punjabi",
+    "bn": "Bengali", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi",
+    "ur": "Urdu", "sa": "Sanskrit", "bh": "Bhojpuri", "as": "Assamese",
+    "gu": "Gujarati", "or": "Odia",
+}
+
+# --- Kaggle dataset identifier ---
+KAGGLE_DATASET_ID = "gauthamvijayaraj/spotify-tracks-dataset-updated-every-week"

@@ -12,7 +12,11 @@ api = KaggleApi()
 api.authenticate()
 print("[OK] Authenticated")
 
-ds = "gauthamvijayaraj/spotify-tracks-dataset-updated-every-week"
+import sys as _sys
+_sys.path.insert(0, "src")
+from config import KAGGLE_DATASET_ID
+
+ds = KAGGLE_DATASET_ID
 print(f"\n[DOWNLOAD] {ds}...")
 try:
     api.dataset_download_files(ds, path="datasets", unzip=True)

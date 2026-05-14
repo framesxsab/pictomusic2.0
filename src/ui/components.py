@@ -8,6 +8,13 @@ import urllib.parse
 import pandas as pd
 import streamlit as st
 
+from config import (
+    HERO_TITLE,
+    LANGUAGE_DISPLAY_MAP,
+    SPOTIFY_SEARCH_URL,
+    SPOTIFY_TRACK_URL,
+    YOUTUBE_SEARCH_URL,
+)
 from security import escape_html
 
 
@@ -22,7 +29,7 @@ def render_hero_section(version_tag: str, subtitle: str) -> None:
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<h1 class="hero-title">WHERE SIGHT<br>BECOMES SOUND</h1>',
+        f'<h1 class="hero-title">{HERO_TITLE}</h1>',
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -64,12 +71,7 @@ def render_song_card(
         if genre and genre not in ("", "unknown", "pop"):
             tag_items.append(f'<span class="song-tag">{escape_html(genre)}</span>')
         if language and language not in ("", "en"):
-            lang_map = {
-                "hi": "Hindi", "ta": "Tamil", "te": "Telugu", "pa": "Punjabi",
-                "bn": "Bengali", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi",
-                "ur": "Urdu", "sa": "Sanskrit", "bh": "Bhojpuri", "as": "Assamese",
-            }
-            lang_display = lang_map.get(language, language)
+            lang_display = LANGUAGE_DISPLAY_MAP.get(language, language)
             tag_items.append(f'<span class="song-tag">{escape_html(lang_display)}</span>')
         if tag_items:
             tags_html = f'<div class="song-meta">{"".join(tag_items)}</div>'
@@ -109,12 +111,12 @@ def render_preview_or_fallback(
         query = f"{song_name} {artist_name}".strip()
         encoded_query = urllib.parse.quote(query)
 
-        yt_url = f"https://www.youtube.com/results?search_query={encoded_query}"
+        yt_url = f"{YOUTUBE_SEARCH_URL}{encoded_query}"
 
         if spotify_id and str(spotify_id).strip():
-            sp_url = f"https://open.spotify.com/track/{spotify_id}"
+            sp_url = f"{SPOTIFY_TRACK_URL}{spotify_id}"
         else:
-            sp_url = f"https://open.spotify.com/search/{encoded_query}"
+            sp_url = f"{SPOTIFY_SEARCH_URL}{encoded_query}"
 
         st.markdown(
             f"""

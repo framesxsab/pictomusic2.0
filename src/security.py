@@ -11,6 +11,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from config import (
+    CSP_FONT_SOURCES,
+    CSP_FRAME_ANCESTORS,
+    CSP_IMG_SOURCES,
+    CSP_MEDIA_SOURCES,
+    CSP_STYLE_SOURCES,
     MAX_UPLOAD_SIZE_BYTES,
     MAX_UPLOAD_SIZE_MB,
     MAX_URL_LENGTH,
@@ -198,13 +203,13 @@ def inject_csp_headers() -> None:
     import streamlit as st
     csp = (
         "default-src 'self'; "
-        "img-src 'self' https://*.scdn.co https://* data:; "
-        "media-src 'self' https://p.scdn.co https://*.scdn.co; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src https://fonts.gstatic.com; "
+        f"img-src 'self' {CSP_IMG_SOURCES}; "
+        f"media-src 'self' {CSP_MEDIA_SOURCES}; "
+        f"style-src 'self' {CSP_STYLE_SOURCES}; "
+        f"font-src {CSP_FONT_SOURCES}; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
         "connect-src 'self' https://*; "
-        "frame-ancestors 'self' https://huggingface.co https://*.hf.space;"
+        f"frame-ancestors 'self' {CSP_FRAME_ANCESTORS};"
     )
     st.markdown(
         f'<meta http-equiv="Content-Security-Policy" content="{csp}">',

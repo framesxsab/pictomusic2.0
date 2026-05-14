@@ -22,10 +22,14 @@ from config import (
     DEFAULT_TOP_K,
     DATASET_PATH,
     EMBEDDINGS_PATH,
+    HTTP_CHUNK_SIZE,
     IMAGE_MOOD_KEYWORDS,
     MAX_IMAGE_PIXELS,
     MAX_TOKEN_LENGTH,
+    MOOD_FETCH_MULTIPLIER,
     MOOD_RERANK_BOOST,
+    MOOD_SIMILARITY_THRESHOLD,
+    MOOD_TOP_N,
     REQUEST_TIMEOUT,
 )
 from embeddings import (
@@ -147,8 +151,8 @@ class ImageMusicRecommender:
             ).flatten()
 
             mood_keys = list(IMAGE_MOOD_KEYWORDS.keys())
-            top_indices = similarities.argsort()[-2:][::-1]
-            top_moods = [mood_keys[i] for i in top_indices if similarities[i] > 0.15]
+            top_indices = similarities.argsort()[-MOOD_TOP_N:][::-1]
+            top_moods = [mood_keys[i] for i in top_indices if similarities[i] > MOOD_SIMILARITY_THRESHOLD]
 
             mood_keywords = []
             for mood in top_moods:
@@ -222,7 +226,7 @@ class ImageMusicRecommender:
                 )
                 response.raise_for_status()
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-                    for chunk in response.iter_content(chunk_size=8192):
+                    for chunk in response.iter_content(chunk_size=HTTP_CHUNK_SIZE):
                         tmp.write(chunk)
                     tmp_path = tmp.name
                 image = Image.open(tmp_path).convert("RGB")
@@ -273,7 +277,7 @@ class ImageMusicRecommender:
 
         try:
             # Fetch more candidates for re-ranking
-            fetch_k = min(top_k * 3, self.index.ntotal)
+            fetch_k = min(top_k * MOOD_FETCH_MULTIPLIER, self.index.ntotal)
             distances, indices = self.index.search(img_emb.astype("float32"), fetch_k)
             results = self.music_df.iloc[indices[0]].copy()
 

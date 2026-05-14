@@ -3,11 +3,13 @@ PictoMusic Global CSS
 Glassmorphic dark theme with violet/neon gradients.
 """
 
+from config import GOOGLE_FONTS_URL
+
 
 def get_global_css() -> str:
-    return """
+    return f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('{GOOGLE_FONTS_URL}');
 
 :root {
     --primary: #4f06f9;

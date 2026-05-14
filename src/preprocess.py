@@ -16,6 +16,8 @@ from config import (
     AUDIO_FEATURE_COLUMNS,
     DATASET_PATH,
     FEATURE_DESCRIPTORS,
+    LANGUAGE_DISPLAY_MAP,
+    MOOD_THRESHOLDS,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -102,40 +104,45 @@ def infer_mood_tags(row: pd.Series) -> str:
     except (ValueError, TypeError):
         return ""
 
-    if valence > 0.65 and energy > 0.65:
+    mt = MOOD_THRESHOLDS
+
+    if valence > mt["energetic_happy_valence"] and energy > mt["energetic_happy_energy"]:
         tags.extend(["energetic", "happy", "party"])
-    elif valence > 0.65:
+    elif valence > mt["energetic_happy_valence"]:
         tags.append("happy")
-    elif energy > 0.65:
+    elif energy > mt["energetic_happy_energy"]:
         tags.append("intense")
 
-    if valence < 0.3 and energy < 0.4:
+    if valence < mt["sad_valence"] and energy < mt["sad_energy"]:
         tags.extend(["sad", "melancholic"])
-    elif valence < 0.3:
+    elif valence < mt["sad_valence"]:
         tags.append("melancholic")
 
-    if energy < 0.35 and acousticness > 0.6:
+    if energy < mt["calm_energy"] and acousticness > mt["calm_acousticness"]:
         tags.extend(["calm", "peaceful"])
-    elif energy < 0.35:
+    elif energy < mt["calm_energy"]:
         tags.append("calm")
 
-    if danceability > 0.7:
+    if danceability > mt["danceable"]:
         tags.append("danceable")
 
-    if acousticness > 0.7:
+    if acousticness > mt["acoustic"]:
         tags.append("acoustic")
 
-    if 0.35 < valence < 0.65 and 0.35 < energy < 0.65 and acousticness > 0.4:
+    if (mt["romantic_valence_low"] < valence < mt["romantic_valence_high"]
+            and mt["romantic_energy_low"] < energy < mt["romantic_energy_high"]
+            and acousticness > mt["romantic_acousticness"]):
         tags.append("romantic")
 
-    if instrumentalness > 0.5:
+    if instrumentalness > mt["instrumental"]:
         tags.append("instrumental")
 
     genre = str(row.get("genre", "")).lower()
     if genre in ("devotional", "classical", "sufi", "ghazal"):
         tags.append("devotional")
 
-    if energy < 0.45 and acousticness > 0.5 and valence > 0.3:
+    if (energy < mt["soothing_energy"] and acousticness > mt["soothing_acousticness"]
+            and valence > mt["soothing_valence"]):
         tags.append("soothing")
 
     return ",".join(sorted(set(tags)))
@@ -206,14 +213,8 @@ def build_enhanced_description(row: pd.Series) -> str:
         meta_parts.append(genre.replace("_", " "))
 
     language = str(row.get("language", "")).strip()
-    lang_map = {
-        "hi": "hindi", "ta": "tamil", "te": "telugu",
-        "pa": "punjabi", "bn": "bengali", "kn": "kannada", "ml": "malayalam",
-        "mr": "marathi", "ur": "urdu", "sa": "sanskrit", "bh": "bhojpuri",
-        "as": "assamese", "gu": "gujarati", "or": "odia",
-    }
-    if language in lang_map:
-        meta_parts.append(lang_map[language])
+    if language in LANGUAGE_DISPLAY_MAP:
+        meta_parts.append(LANGUAGE_DISPLAY_MAP[language].lower())
     elif language and language != "en":
         meta_parts.append(language)
 
