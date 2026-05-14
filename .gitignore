@@ -1,0 +1,21 @@
+# Python Virtual Environments
+.venv/
+venv/
+
+# Environment secrets
+.env
+
+# Generated files
+*.npy
+!song_embeddings_fp16.npy
+
+# Old/large data files
+src/spotify_millsongdata.csv
+Music_original_backup.csv
+
+# Raw datasets (too large for git, download via download_datasets.py)
+datasets/
+
+# Python cache
+__pycache__/
+*.pyc

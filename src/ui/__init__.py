@@ -1,0 +1,1 @@
+"""PictoMusic UI package."""
