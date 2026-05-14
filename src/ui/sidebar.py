@@ -4,23 +4,25 @@ PictoMusic Sidebar
 
 import streamlit as st
 
+from config import APP_ICON, APP_TITLE
+
 
 def render_sidebar() -> str:
     """Render the sidebar and return the selected image source option."""
     with st.sidebar:
         st.markdown(
-            """
+            f"""
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 2rem;">
-                <div style="width: 42px; height: 42px; background: linear-gradient(135deg, #4f06f9, #6d28d9);
+                <div style="width: 42px; height: 42px; background: linear-gradient(135deg, var(--primary), #6d28d9);
                             border-radius: 12px; display: flex; align-items: center; justify-content: center;
                             box-shadow: 0 0 20px rgba(79,6,249,0.4); font-size: 1.3rem;">
-                    \U0001f3b5
+                    {APP_ICON}
                 </div>
                 <div>
-                    <div style="font-size: 1.2rem; font-weight: 800; color: #f0eef5; letter-spacing: -0.02em;">
-                        Pictomusic
+                    <div style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em;">
+                        {APP_TITLE}
                     </div>
-                    <div style="font-size: 0.6rem; font-weight: 700; color: #4f06f9;
+                    <div style="font-size: 0.6rem; font-weight: 700; color: var(--primary);
                                 letter-spacing: 0.2em; text-transform: uppercase;">
                         AI Audio
                     </div>
@@ -42,17 +44,17 @@ def render_sidebar() -> str:
 
         st.markdown(
             """
-            <div style="background: rgba(79,6,249,0.08); border: 1px solid rgba(79,6,249,0.2);
+            <div style="background: var(--primary-dim); border: 1px solid rgba(79,6,249,0.2);
                         border-radius: 1rem; padding: 1rem; margin-top: 1rem;">
-                <div style="font-size: 0.6rem; font-weight: 700; color: #5a5670;
+                <div style="font-size: 0.6rem; font-weight: 700; color: var(--text-muted);
                             letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.5rem;">
                     Neural Engine
                 </div>
-                <div style="font-size: 0.8rem; color: #8a85a0; line-height: 1.5;">
-                    Powered by <span style="color: #4f06f9; font-weight: 700;">CLIP</span> vision-language
-                    model + <span style="color: #4f06f9; font-weight: 700;">FAISS</span> similarity search
+                <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
+                    Powered by <span style="color: var(--primary); font-weight: 700;">CLIP</span> vision-language
+                    model + <span style="color: var(--primary); font-weight: 700;">FAISS</span> similarity search
                     <br><br>
-                    <span style="font-size: 0.7rem; color: #5a5670;">
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">
                         \U0001f30f Indian music: Bollywood, Punjabi, Tamil, Telugu, Bengali + more
                     </span>
                 </div>

@@ -23,9 +23,9 @@ def render_results(recommendations: pd.DataFrame) -> None:
         with stat_cols[0]:
             render_stat_card("Top Match", f"{top_score:.3f}", "SIM")
         with stat_cols[1]:
-            render_stat_card("Avg Score", f"{avg_score:.3f}", "AVG", "#d400ff")
+            render_stat_card("Avg Score", f"{avg_score:.3f}", "AVG", "var(--accent-pink)")
         with stat_cols[2]:
-            render_stat_card("Tracks Found", str(num_results), "TRACKS", "#00d4ff")
+            render_stat_card("Tracks Found", str(num_results), "TRACKS", "var(--accent-blue)")
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(
