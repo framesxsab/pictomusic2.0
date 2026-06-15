@@ -9,7 +9,15 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from security import escape_html, sanitize_filename, validate_image_url, validate_uploaded_file
+from security import Image, escape_html, sanitize_filename, validate_image_url, validate_uploaded_file
+
+
+VALID_PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+    b"\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+    b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xcf\xc0\x00\x00"
+    b"\x03\x01\x01\x00\xc9\xfe\x92\xef\x00\x00\x00\x00IEND\xaeB`\x82"
+)
 
 
 class TestEscapeHtml:
@@ -117,15 +125,19 @@ class TestValidateUploadedFile:
         with pytest.raises(ValueError, match="valid image"):
             validate_uploaded_file(file)
 
-    def test_valid_jpeg(self):
+    def test_fake_jpeg_header_is_rejected_by_decode_validation(self):
+        if Image is None:
+            pytest.skip("Pillow is not installed in this Python environment")
         file = io.BytesIO(b"\xff\xd8\xff" + b"\x00" * 100)
         file.name = "photo.jpg"
-        validate_uploaded_file(file)  # Should not raise
+        with pytest.raises(ValueError, match="decoded"):
+            validate_uploaded_file(file)
 
     def test_valid_png(self):
-        file = io.BytesIO(b"\x89PNG" + b"\x00" * 100)
+        file = io.BytesIO(VALID_PNG_BYTES)
         file.name = "photo.png"
         validate_uploaded_file(file)  # Should not raise
+        assert file.tell() == 0
 
     def test_file_too_large(self):
         # Create a mock file that reports size > 10MB

@@ -1,6 +1,7 @@
 """Tests for recommendation engine."""
 
 import sys
+import io
 from pathlib import Path
 
 import numpy as np
@@ -110,3 +111,43 @@ class TestEmbeddingsIO:
             device=None,
         )
         assert result is None
+
+
+def make_uploaded_image(fmt="PNG"):
+    Image = pytest.importorskip("PIL.Image")
+    image = Image.new("RGB", (16, 16), color=(244, 182, 66))
+    buffer = io.BytesIO()
+    image.save(buffer, format=fmt)
+    buffer.seek(0)
+    buffer.name = f"upload.{fmt.lower()}"
+    return buffer
+
+
+class TestUploadedImageWorkflow:
+    def test_uploaded_image_embedding_path_accepts_valid_image(self, monkeypatch):
+        from recommend import ImageMusicRecommender
+
+        recommender = object.__new__(ImageMusicRecommender)
+        recommender.clip_model = object()
+        recommender.processor = object()
+        recommender.device = "cpu"
+
+        expected = np.ones((1, 512), dtype=np.float32)
+        monkeypatch.setattr("recommend.generate_image_embedding", lambda *args: expected)
+
+        result = recommender._get_image_embedding(make_uploaded_image("PNG"))
+
+        assert result is expected
+
+    def test_uploaded_image_embedding_path_rejects_corrupt_image_without_crash(self):
+        from recommend import ImageMusicRecommender
+
+        recommender = object.__new__(ImageMusicRecommender)
+        recommender.clip_model = object()
+        recommender.processor = object()
+        recommender.device = "cpu"
+
+        file_obj = io.BytesIO(b"\xff\xd8\xff" + b"\x00" * 100)
+        file_obj.name = "upload.jpg"
+
+        assert recommender._get_image_embedding(file_obj) is None

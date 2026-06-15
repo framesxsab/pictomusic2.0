@@ -1,0 +1,283 @@
+{
+  "version": 1,
+  "description": "Golden recommendation scenarios for India-first image-to-music quality checks.",
+  "cases": [
+    {
+      "id": "bollywood_romantic_rain",
+      "prompt": "A rainy evening portrait with a romantic, melancholic Bollywood feel",
+      "preferred_language": "hi",
+      "preferred_region": "bollywood",
+      "required_languages": ["hi"],
+      "required_regions": ["bollywood"],
+      "required_moods": ["romantic", "melancholic", "calm"],
+      "min_catalog_matches": 500,
+      "min_preview_matches": 5,
+      "ranking_fixture": {
+        "expected_top": "gold_bollywood_romantic",
+        "candidates": [
+          {
+            "id": "global_visual_neighbor",
+            "name": "Global Visual Neighbor",
+            "artist": "Western Artist",
+            "similarity_score": 0.62,
+            "india_affinity": 0.0,
+            "language": "en",
+            "region": "western",
+            "mood_tags": "melancholic,calm",
+            "preview": "",
+            "img": ""
+          },
+          {
+            "id": "gold_bollywood_romantic",
+            "name": "Golden Bollywood Romance",
+            "artist": "Arijit Singh",
+            "similarity_score": 0.47,
+            "india_affinity": 1.0,
+            "language": "hi",
+            "region": "bollywood",
+            "mood_tags": "romantic,melancholic,calm",
+            "preview": "https://p.scdn.co/preview.mp3",
+            "img": "https://i.scdn.co/image.jpg",
+            "release_year": 2025
+          }
+        ]
+      }
+    },
+    {
+      "id": "tamil_festival_energy",
+      "prompt": "Festival lights, dancers, drums, and a high-energy South Indian celebration",
+      "preferred_language": "ta",
+      "preferred_region": "south_indian",
+      "required_languages": ["ta"],
+      "required_regions": ["south_indian"],
+      "required_moods": ["energetic", "danceable", "happy"],
+      "min_catalog_matches": 500,
+      "min_preview_matches": 1,
+      "ranking_fixture": {
+        "expected_top": "gold_tamil_festival",
+        "candidates": [
+          {
+            "id": "western_party",
+            "name": "Western Party",
+            "artist": "Club Artist",
+            "similarity_score": 0.68,
+            "india_affinity": 0.0,
+            "language": "en",
+            "region": "western",
+            "mood_tags": "energetic,danceable,happy",
+            "preview": "https://p.scdn.co/global.mp3",
+            "img": "https://i.scdn.co/global.jpg",
+            "release_year": 2024
+          },
+          {
+            "id": "gold_tamil_festival",
+            "name": "Golden Tamil Festival",
+            "artist": "Anirudh Ravichander",
+            "similarity_score": 0.50,
+            "india_affinity": 1.0,
+            "language": "ta",
+            "region": "south_indian",
+            "mood_tags": "energetic,danceable,happy",
+            "preview": "https://p.scdn.co/tamil.mp3",
+            "img": "https://i.scdn.co/tamil.jpg",
+            "release_year": 2026
+          }
+        ]
+      }
+    },
+    {
+      "id": "punjabi_party_drive",
+      "prompt": "Night drive, neon city lights, confidence, and Punjabi party energy",
+      "preferred_language": "pa",
+      "preferred_region": "punjabi",
+      "required_languages": ["pa"],
+      "required_regions": ["punjabi"],
+      "required_moods": ["energetic", "danceable", "happy"],
+      "min_catalog_matches": 100,
+      "min_preview_matches": 0,
+      "min_link_matches": 25,
+      "ranking_fixture": {
+        "expected_top": "gold_punjabi_drive",
+        "candidates": [
+          {
+            "id": "generic_neon",
+            "name": "Generic Neon",
+            "artist": "Synth Artist",
+            "similarity_score": 0.64,
+            "india_affinity": 0.0,
+            "language": "en",
+            "region": "western",
+            "mood_tags": "energetic,electronic",
+            "preview": "",
+            "img": "https://i.scdn.co/global.jpg",
+            "release_year": 2025
+          },
+          {
+            "id": "gold_punjabi_drive",
+            "name": "Golden Punjabi Drive",
+            "artist": "AP Dhillon",
+            "similarity_score": 0.49,
+            "india_affinity": 1.0,
+            "language": "pa",
+            "region": "punjabi",
+            "mood_tags": "energetic,danceable,happy",
+            "preview": "https://p.scdn.co/punjabi.mp3",
+            "img": "https://i.scdn.co/punjabi.jpg",
+            "release_year": 2025
+          }
+        ]
+      }
+    },
+    {
+      "id": "marathi_folk_warmth",
+      "prompt": "Warm village celebration, folk colors, family, and Marathi regional warmth",
+      "preferred_language": "mr",
+      "preferred_region": "marathi",
+      "required_languages": ["mr"],
+      "required_regions": ["marathi"],
+      "required_moods": ["happy", "acoustic", "organic"],
+      "min_catalog_matches": 100,
+      "min_preview_matches": 0
+    },
+    {
+      "id": "gujarati_garba",
+      "prompt": "Garba night with circular dancing, bright traditional clothes, and festive rhythm",
+      "preferred_language": "gu",
+      "preferred_region": "gujarati",
+      "required_languages": ["gu"],
+      "required_regions": ["gujarati"],
+      "required_moods": ["energetic", "danceable", "happy"],
+      "min_catalog_matches": 100,
+      "min_preview_matches": 0
+    },
+    {
+      "id": "bengali_monsoon_poetry",
+      "prompt": "Kolkata monsoon, thoughtful street scene, poetic Bengali mood",
+      "preferred_language": "bn",
+      "preferred_region": "bengali",
+      "required_languages": ["bn"],
+      "required_regions": ["bengali"],
+      "required_moods": ["melancholic", "calm", "acoustic"],
+      "min_catalog_matches": 50,
+      "min_preview_matches": 0
+    },
+    {
+      "id": "devotional_temple_morning",
+      "prompt": "Morning temple bells, flowers, prayer, and a peaceful devotional image",
+      "preferred_language": "hi",
+      "preferred_region": "bollywood",
+      "required_languages": ["hi", "sa", "ur"],
+      "required_regions": ["bollywood", "classical_indian"],
+      "required_moods": ["devotional", "peaceful", "acoustic"],
+      "min_catalog_matches": 100,
+      "min_preview_matches": 0
+    },
+    {
+      "id": "bhojpuri_wedding_energy",
+      "prompt": "North Indian wedding crowd, dancing, bright colors, and Bhojpuri celebration",
+      "preferred_language": "bh",
+      "preferred_region": "bhojpuri",
+      "required_languages": ["bh"],
+      "required_regions": ["bhojpuri"],
+      "required_moods": ["energetic", "danceable", "party"],
+      "min_catalog_matches": 50,
+      "min_preview_matches": 0
+    },
+    {
+      "id": "preview_preference_visible_set",
+      "prompt": "Synthetic fixture: preview songs should be common when close enough to non-preview scores",
+      "catalog_check": false,
+      "preferred_language": "any",
+      "preferred_region": "any",
+      "ranking_fixture": {
+        "expected_top": "important_non_preview",
+        "target_size": 3,
+        "min_preview_count": 2,
+        "require_unique": true,
+        "candidates": [
+          {
+            "id": "important_non_preview",
+            "name": "Strong Visual Match",
+            "artist": "Critical Artist",
+            "similarity_score": 0.94,
+            "preview": "",
+            "img": "https://i.scdn.co/strong.jpg"
+          },
+          {
+            "id": "close_non_preview_one",
+            "name": "Close No Preview One",
+            "artist": "Artist A",
+            "similarity_score": 0.91,
+            "preview": "",
+            "img": "https://i.scdn.co/a.jpg"
+          },
+          {
+            "id": "close_non_preview_two",
+            "name": "Close No Preview Two",
+            "artist": "Artist B",
+            "similarity_score": 0.89,
+            "preview": "",
+            "img": "https://i.scdn.co/b.jpg"
+          },
+          {
+            "id": "preview_close_one",
+            "name": "Preview Close One",
+            "artist": "Artist C",
+            "similarity_score": 0.80,
+            "preview": "https://p.scdn.co/one.mp3",
+            "img": "https://i.scdn.co/c.jpg"
+          },
+          {
+            "id": "preview_close_two",
+            "name": "Preview Close Two",
+            "artist": "Artist D",
+            "similarity_score": 0.78,
+            "preview": "https://p.scdn.co/two.mp3",
+            "img": "https://i.scdn.co/d.jpg"
+          }
+        ]
+      }
+    },
+    {
+      "id": "duplicate_song_collapse",
+      "prompt": "Synthetic fixture: repeated song variants should collapse to one visible card",
+      "catalog_check": false,
+      "preferred_language": "any",
+      "preferred_region": "any",
+      "ranking_fixture": {
+        "expected_top": "duplicate_with_preview",
+        "target_size": 3,
+        "min_preview_count": 1,
+        "require_unique": true,
+        "candidates": [
+          {
+            "id": "duplicate_no_preview",
+            "name": "Same Song (From Film)",
+            "artist": "Singer One, Singer Two",
+            "similarity_score": 0.84,
+            "preview": "",
+            "img": "https://i.scdn.co/no-preview.jpg",
+            "spotify_id": "dup-no-preview"
+          },
+          {
+            "id": "duplicate_with_preview",
+            "name": "Same Song",
+            "artist": "Singer Two, Singer One",
+            "similarity_score": 0.78,
+            "preview": "https://p.scdn.co/duplicate.mp3",
+            "img": "https://i.scdn.co/preview.jpg",
+            "spotify_id": "dup-preview"
+          },
+          {
+            "id": "other_song",
+            "name": "Other Song",
+            "artist": "Other Artist",
+            "similarity_score": 0.76,
+            "preview": "",
+            "img": "https://i.scdn.co/other.jpg"
+          }
+        ]
+      }
+    }
+  ]
+}

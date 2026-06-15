@@ -121,6 +121,10 @@ def validate_uploaded_file(file_obj) -> None:
             "The file header does not match any supported image format."
         )
 
+    image_bytes = file_obj.read()
+    file_obj.seek(0)
+    validate_image_content(image_bytes)
+
 
 def validate_image_content(image_bytes: bytes) -> bool:
     """Actually decode image bytes with PIL to catch malformed/bomb images.

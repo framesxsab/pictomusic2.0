@@ -41,6 +41,19 @@ class TestInferTagsFromSource:
         assert result["genre"].iloc[0] == "tamil"
         assert result["region"].iloc[0] == "south_indian"
 
+    def test_tags_spotify_tracks_2026_tamil(self):
+        df = pd.DataFrame({"source": ["spotify_tracks_2026_Tamil"], "name": ["test"], "artist": ["test"]})
+        result = infer_tags_from_source(df)
+        assert result["language"].iloc[0] == "ta"
+        assert result["genre"].iloc[0] == "tamil"
+        assert result["region"].iloc[0] == "south_indian"
+
+    def test_tags_spotify_data_2026_defaults_indian(self):
+        df = pd.DataFrame({"source": ["spotify_data_2026"], "name": ["test"], "artist": ["test"]})
+        result = infer_tags_from_source(df)
+        assert result["language"].iloc[0] == "hi"
+        assert result["genre"].iloc[0] == "bollywood"
+
     def test_tags_original_western(self):
         df = pd.DataFrame({"source": ["original"], "name": ["test"], "artist": ["test"]})
         result = infer_tags_from_source(df)
@@ -58,6 +71,42 @@ class TestInferTagsFromSource:
         result = infer_tags_from_source(df)
         assert "language" in result.columns
         assert result["language"].iloc[0] == "en"
+
+    def test_no_source_column_infers_known_indian_artist(self):
+        df = pd.DataFrame({"name": ["Vaathi Coming"], "artist": ["Anirudh"]})
+        result = infer_tags_from_source(df)
+        assert result["language"].iloc[0] == "ta"
+        assert result["region"].iloc[0] == "south_indian"
+
+    def test_punjabi_artist_overrides_generic_hindi_source(self):
+        df = pd.DataFrame({
+            "source": ["spotify_tracks_2026_Hindi"],
+            "name": ["Winning Speech"],
+            "artist": ["Karan Aujla"],
+        })
+        result = infer_tags_from_source(df)
+        assert result["language"].iloc[0] == "pa"
+        assert result["region"].iloc[0] == "punjabi"
+
+    def test_bhojpuri_title_overrides_mismatched_source(self):
+        df = pd.DataFrame({
+            "source": ["spotify_tracks_2026_Tamil"],
+            "name": ["Khesariya Se Kam Bani Ka - Bhojpuri"],
+            "artist": ["Pradeep Kumar"],
+        })
+        result = infer_tags_from_source(df)
+        assert result["language"].iloc[0] == "bh"
+        assert result["region"].iloc[0] == "bhojpuri"
+
+    def test_indian_title_hints_do_not_match_english_substrings(self):
+        df = pd.DataFrame({
+            "source": ["original", "original", "original"],
+            "name": ["Fools Gold - Remastered", "Futura Free", "Flightless Bird, American Mouth"],
+            "artist": ["The Stone Roses", "Frank Ocean", "Iron & Wine"],
+        })
+        result = infer_tags_from_source(df)
+        assert list(result["language"]) == ["en", "en", "en"]
+        assert list(result["region"]) == ["western", "western", "western"]
 
     def test_tags_regional_punjabi(self):
         df = pd.DataFrame({"source": ["regional_Punjabi"], "name": ["test"], "artist": ["test"]})
@@ -100,6 +149,13 @@ class TestInferMoodTags:
                          "acousticness": 0.8, "instrumentalness": 0.2, "genre": "devotional"})
         tags = infer_mood_tags(row)
         assert "devotional" in tags
+
+    def test_regional_party_genre_handles_low_valence_source(self):
+        row = pd.Series({"valence": 0.05, "energy": 0.8, "danceability": 0.8,
+                         "acousticness": 0.3, "instrumentalness": 0.0, "genre": "bhojpuri"})
+        tags = infer_mood_tags(row)
+        assert "energetic" in tags
+        assert "party" in tags
 
     def test_handles_nan_values(self):
         row = pd.Series({"valence": np.nan, "energy": 0.5, "danceability": 0.5,

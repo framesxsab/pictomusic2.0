@@ -17,6 +17,9 @@ EMBEDDING_BATCH_SIZE = int(os.getenv("PICTOMUSIC_BATCH_SIZE", "32"))
 MAX_TOKEN_LENGTH = int(os.getenv("PICTOMUSIC_MAX_TOKEN_LEN", "77"))
 
 DEFAULT_TOP_K = int(os.getenv("PICTOMUSIC_TOP_K", "10"))
+RETRIEVAL_CANDIDATE_MULTIPLIER = int(
+    os.getenv("PICTOMUSIC_RETRIEVAL_CANDIDATE_MULT", "30")
+)
 
 ALLOWED_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 MAX_UPLOAD_SIZE_MB = int(os.getenv("PICTOMUSIC_MAX_UPLOAD_MB", "10"))
@@ -88,9 +91,54 @@ MAX_IMAGE_PIXELS = int(os.getenv("PICTOMUSIC_MAX_IMAGE_PIXELS", "25000000"))
 
 APP_TITLE = "Pictomusic"
 APP_ICON = "\U0001f3b5"
-APP_SUBTITLE = "Upload an image to discover the perfect soundtrack"
-APP_VERSION_TAG = "v3.0 Neural Core Active"
-HERO_TITLE = "WHERE SIGHT<br>BECOMES SOUND"
+APP_SUBTITLE = "Image-to-song discovery tuned for Indian moods, languages, and charts"
+APP_VERSION_TAG = "v2026 India Retrieval"
+HERO_TITLE = "FIND THE INDIAN SOUND<br>INSIDE YOUR IMAGE"
+
+# --- India-first retrieval ---
+INDIAN_LANGUAGE_CODES = {
+    "hi", "ta", "te", "pa", "bn", "kn", "ml", "mr", "ur", "sa", "bh", "as",
+    "gu", "or",
+}
+INDIAN_REGIONS = {
+    "bollywood", "south_indian", "punjabi", "bengali", "marathi", "gujarati",
+    "odia", "northeast_indian", "rajasthani", "bhojpuri", "haryanvi",
+    "indie_indian", "classical_indian",
+}
+INDIAN_GENRES = {
+    "bollywood", "hindi", "tamil", "telugu", "punjabi", "bengali", "kannada",
+    "malayalam", "marathi", "gujarati", "urdu", "odia", "assamese",
+    "rajasthani", "bhojpuri", "haryanvi", "devotional", "classical", "sufi",
+    "ghazal", "indie_indian", "filmi",
+}
+INDIAN_ARTIST_HINTS = {
+    "arijit singh", "pritam", "a r rahman", "a.r. rahman", "anirudh",
+    "anirudh ravichander", "shreya ghoshal", "neha kakkar", "badshah",
+    "diljit dosanjh", "ap dhillon", "shubh", "sidhu moose wala",
+    "vishal-shekhar", "amit trivedi", "atif aslam", "jubin nautiyal",
+    "shankar-ehsaan-loy", "sachet-parampara", "darshan raval",
+    "sonu nigam", "udit narayan", "alka yagnik", "kumar sanu",
+    "karan aujla", "guru randhawa", "ammy virk", "jass manak",
+    "harrdy sandhu", "amrit maan", "mankirt aulakh", "b praak",
+    "pawan singh", "khesari lal yadav", "antra singh priyanka",
+    "kalpana", "bharat sharma vyas", "sharda sinha",
+}
+INDIAN_TITLE_HINTS = {
+    "dil", "ishq", "pyaar", "yaar", "sajna", "maahi", "tere", "meri",
+    "tum", "tu", "aankh", "zindagi", "jhoome", "nach", "balle", "vaathi",
+    "raataan", "kesariya", "naina", "channa", "kalank", "deva",
+    "bhojpuri", "garba", "chhath", "holi", "bhangra", "gidda",
+}
+RECENT_YEAR_THRESHOLD = int(os.getenv("PICTOMUSIC_RECENT_YEAR", "2025"))
+INDIA_RELEVANCE_WEIGHT = float(os.getenv("PICTOMUSIC_INDIA_WEIGHT", "0.22"))
+LANGUAGE_MATCH_WEIGHT = float(os.getenv("PICTOMUSIC_LANGUAGE_WEIGHT", "0.22"))
+REGION_MATCH_WEIGHT = float(os.getenv("PICTOMUSIC_REGION_WEIGHT", "0.14"))
+FRESHNESS_WEIGHT = float(os.getenv("PICTOMUSIC_FRESHNESS_WEIGHT", "0.08"))
+POPULARITY_WEIGHT = float(os.getenv("PICTOMUSIC_POPULARITY_WEIGHT", "0.06"))
+PREVIEW_WEIGHT = float(os.getenv("PICTOMUSIC_PREVIEW_WEIGHT", "0.08"))
+ARTWORK_WEIGHT = float(os.getenv("PICTOMUSIC_ARTWORK_WEIGHT", "0.015"))
+PREVIEW_TARGET_SHARE = float(os.getenv("PICTOMUSIC_PREVIEW_TARGET_SHARE", "0.6"))
+PREVIEW_IMPORTANCE_MARGIN = float(os.getenv("PICTOMUSIC_PREVIEW_IMPORTANCE_MARGIN", "0.12"))
 
 # --- Mood inference thresholds (preprocess.py) ---
 MOOD_THRESHOLDS = {
@@ -123,7 +171,7 @@ HTTP_CHUNK_SIZE = 8192
 YOUTUBE_SEARCH_URL = "https://www.youtube.com/results?search_query="
 SPOTIFY_TRACK_URL = "https://open.spotify.com/track/"
 SPOTIFY_SEARCH_URL = "https://open.spotify.com/search/"
-GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,700;9..144,800&display=swap"
 
 # --- CSP policy domains ---
 CSP_IMG_SOURCES = "https://*.scdn.co https://* data:"

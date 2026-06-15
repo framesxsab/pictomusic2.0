@@ -5,9 +5,6 @@ Reusable HTML rendering functions for the Streamlit interface.
 
 import urllib.parse
 
-import pandas as pd
-import streamlit as st
-
 from config import (
     HERO_TITLE,
     LANGUAGE_DISPLAY_MAP,
@@ -20,6 +17,8 @@ from security import escape_html
 
 def render_hero_section(version_tag: str, subtitle: str) -> None:
     """Render the hero section with version badge, title, and subtitle."""
+    import streamlit as st
+
     st.markdown(
         f"""
         <div style="text-align: center; padding: 1rem 0 0.5rem;" class="hero-glow">
@@ -41,6 +40,8 @@ def render_hero_section(version_tag: str, subtitle: str) -> None:
 
 def render_stat_card(label: str, value: str, unit: str, color: str = "var(--primary)") -> None:
     """Render a single statistics card."""
+    import streamlit as st
+
     st.markdown(
         f"""
         <div class="stat-card" style="border-left-color: {color};">
@@ -60,41 +61,87 @@ def render_song_card(
     score_pct: float,
     genre: str = "",
     language: str = "",
+    region: str = "",
+    visual_score: float | None = None,
+    release_year: str = "",
 ) -> None:
     """Render a single song recommendation card."""
+    import streamlit as st
+
+    st.markdown(
+        build_song_card_html(
+            idx,
+            song_name,
+            artist_name,
+            score,
+            score_pct,
+            genre,
+            language,
+            region,
+            visual_score,
+            release_year,
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+def build_song_card_html(
+    idx: int,
+    song_name: str,
+    artist_name: str,
+    score: float,
+    score_pct: float,
+    genre: str = "",
+    language: str = "",
+    region: str = "",
+    visual_score: float | None = None,
+    release_year: str = "",
+) -> str:
+    """Build card HTML without leading indentation that Markdown can treat as code."""
     safe_name = escape_html(song_name)
     safe_artist = escape_html(artist_name)
 
     tags_html = ""
-    if genre or language:
+    if genre or language or region or release_year:
         tag_items = []
         if genre and genre not in ("", "unknown", "pop"):
             tag_items.append(f'<span class="song-tag">{escape_html(genre)}</span>')
         if language and language not in ("", "en"):
             lang_display = LANGUAGE_DISPLAY_MAP.get(language, language)
             tag_items.append(f'<span class="song-tag">{escape_html(lang_display)}</span>')
+        if region and region not in ("", "western", "unknown"):
+            tag_items.append(f'<span class="song-tag">{escape_html(region.replace("_", " "))}</span>')
+        if release_year and release_year not in ("", "nan", "none"):
+            tag_items.append(f'<span class="song-tag">{escape_html(str(release_year))}</span>')
         if tag_items:
             tags_html = f'<div class="song-meta">{"".join(tag_items)}</div>'
 
-    st.markdown(
-        f"""
-        <div class="song-card">
-            <div class="song-rank">Track #{idx + 1}</div>
-            <div class="song-name">{safe_name}</div>
-            <div class="song-artist">{safe_artist}</div>
-            {tags_html}
-            <div class="score-container">
-                <div class="score-label">
-                    <span class="score-text">Neural Match</span>
-                    <span class="score-value">{score:.4f}</span>
-                </div>
-                <div class="score-bar-bg">
-                    <div class="score-bar-fill" style="width: {score_pct:.1f}%;"></div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    score_label = "Hybrid Match" if visual_score is not None else "Match"
+    visual_html = ""
+    if visual_score is not None:
+        visual_html = f'<span class="visual-score">Visual {visual_score:.4f}</span>'
+
+    return "\n".join(
+        line
+        for line in [
+            '<div class="song-card">',
+            f'<div class="song-rank">Track #{idx + 1}</div>',
+            f'<div class="song-name">{safe_name}</div>',
+            f'<div class="song-artist">{safe_artist}</div>',
+            tags_html,
+            '<div class="score-container">',
+            '<div class="score-label">',
+            f'<span class="score-text">{score_label}</span>',
+            f'<span class="score-value">{score:.4f}</span>',
+            '</div>',
+            visual_html,
+            '<div class="score-bar-bg">',
+            f'<div class="score-bar-fill" style="width: {score_pct:.1f}%;"></div>',
+            '</div>',
+            '</div>',
+            '</div>',
+        ]
+        if line
     )
 
 
@@ -105,6 +152,8 @@ def render_preview_or_fallback(
     spotify_id: str = "",
 ) -> None:
     """Render audio preview or fallback YouTube/Spotify search links."""
+    import streamlit as st
+
     if preview_url and str(preview_url).strip() and str(preview_url).strip().lower() != "no":
         st.audio(str(preview_url), format="audio/mp3")
     else:

@@ -1,36 +1,40 @@
-"""
-PictoMusic Global CSS
-Glassmorphic dark theme with violet/neon gradients.
-"""
+"""PictoMusic Global CSS."""
 
 from config import GOOGLE_FONTS_URL
 
 
 def get_global_css() -> str:
-    return f"""
+    return """
 <style>
-@import url('{GOOGLE_FONTS_URL}');
+@import url('__GOOGLE_FONTS_URL__');
 
 :root {
-    --primary: #4f06f9;
-    --primary-dim: rgba(79, 6, 249, 0.15);
-    --accent-pink: #d400ff;
-    --accent-blue: #00d4ff;
-    --bg-dark: #0a0516;
-    --bg-card: rgba(79, 6, 249, 0.06);
-    --border-glow: rgba(79, 6, 249, 0.25);
-    --text-primary: #f0eef5;
-    --text-secondary: #8a85a0;
-    --text-muted: #5a5670;
-    --glass-bg: rgba(255, 255, 255, 0.03);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --primary: #f4b642;
+    --primary-dim: rgba(244, 182, 66, 0.14);
+    --accent-warm: #f4b642;
+    --accent-green: #54d39b;
+    --accent-rose: #ee6f8f;
+    --accent-blue: #6db7ff;
+    --bg-dark: #0d1110;
+    --bg-card: rgba(255, 255, 255, 0.055);
+    --panel-soft: rgba(244, 182, 66, 0.08);
+    --border-glow: rgba(244, 182, 66, 0.24);
+    --text-primary: #fff9eb;
+    --text-secondary: #c5bdab;
+    --text-muted: #817a6b;
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-border: rgba(255, 249, 235, 0.11);
 }
 
 html, body, [data-testid="stAppViewContainer"], .stApp,
 [data-testid="stHeader"], [data-testid="stToolbar"] {
-    background-color: var(--bg-dark) !important;
+    background:
+        linear-gradient(135deg, rgba(84, 211, 155, 0.09) 0%, transparent 28%),
+        linear-gradient(225deg, rgba(238, 111, 143, 0.08) 0%, transparent 30%),
+        radial-gradient(circle at 50% -10%, rgba(244, 182, 66, 0.14), transparent 34%),
+        var(--bg-dark) !important;
     color: var(--text-primary) !important;
-    font-family: 'Inter', sans-serif !important;
+    font-family: 'Anek Devanagari', sans-serif !important;
 }
 
 #MainMenu, header[data-testid="stHeader"], footer,
@@ -40,7 +44,7 @@ html, body, [data-testid="stAppViewContainer"], .stApp,
 
 /* Sidebar */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0d0820 0%, #0a0516 100%) !important;
+    background: linear-gradient(180deg, #121613 0%, #0b0f0e 100%) !important;
     border-right: 1px solid var(--border-glow) !important;
 }
 
@@ -59,13 +63,25 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     color: var(--text-primary) !important;
 }
 
+.brand-mark {
+    width: 42px;
+    height: 42px;
+    background: linear-gradient(135deg, rgba(244, 182, 66, 0.95), rgba(238, 111, 143, 0.85));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 30px rgba(244, 182, 66, 0.22);
+    font-size: 1.3rem;
+}
+
 /* Glassmorphism cards */
 .glass-card {
     background: var(--glass-bg);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
-    border-radius: 1.5rem;
+    border-radius: 0.75rem;
     padding: 2rem;
     margin-bottom: 1rem;
     transition: all 0.3s ease;
@@ -73,16 +89,17 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 
 .glass-card:hover {
     border-color: var(--border-glow);
-    box-shadow: 0 0 30px rgba(79, 6, 249, 0.08);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
 }
 
 /* Hero title */
 .hero-title {
     font-size: clamp(2.5rem, 6vw, 4.5rem);
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    background: linear-gradient(135deg, #4f06f9 0%, #d400ff 50%, #00d4ff 100%);
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.02;
+    background: linear-gradient(135deg, #fff6dc 0%, #f4b642 48%, #54d39b 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -95,7 +112,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     text-align: center;
     color: var(--text-secondary);
     font-size: 1.15rem;
-    font-weight: 300;
+    font-weight: 500;
     margin-top: 0.5rem;
     letter-spacing: 0.01em;
 }
@@ -112,7 +129,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     font-weight: 700;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--primary);
+    color: var(--accent-warm);
     margin: 0 auto;
 }
 
@@ -120,7 +137,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     content: '';
     width: 6px;
     height: 6px;
-    background: var(--primary);
+    background: var(--accent-green);
     border-radius: 50%;
     animation: pulse-dot 2s infinite;
 }
@@ -132,10 +149,10 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 
 /* Song card */
 .song-card {
-    background: var(--bg-card);
+    background: linear-gradient(135deg, rgba(255, 249, 235, 0.07), rgba(255, 255, 255, 0.025));
     backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
-    border-radius: 1.25rem;
+    border-radius: 0.75rem;
     padding: 1.5rem;
     margin-bottom: 0.75rem;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -150,7 +167,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     left: 0;
     width: 4px;
     height: 100%;
-    background: linear-gradient(180deg, var(--primary), var(--accent-pink));
+    background: linear-gradient(180deg, var(--accent-warm), var(--accent-green), var(--accent-rose));
     border-radius: 4px 0 0 4px;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -159,7 +176,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 .song-card:hover {
     border-color: var(--border-glow);
     transform: translateX(4px);
-    box-shadow: 0 8px 32px rgba(79, 6, 249, 0.12);
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.26);
 }
 
 .song-card:hover::before {
@@ -171,7 +188,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     font-weight: 800;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--primary);
+    color: var(--accent-warm);
     margin-bottom: 0.25rem;
 }
 
@@ -180,7 +197,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
 }
 
 .song-artist {
@@ -200,8 +217,8 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 .song-tag {
     display: inline-flex;
     padding: 0.15rem 0.5rem;
-    background: rgba(79, 6, 249, 0.08);
-    border: 1px solid rgba(79, 6, 249, 0.15);
+    background: rgba(244, 182, 66, 0.1);
+    border: 1px solid rgba(244, 182, 66, 0.22);
     border-radius: 9999px;
     font-size: 0.6rem;
     font-weight: 600;
@@ -233,13 +250,23 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 .score-value {
     font-size: 0.75rem;
     font-weight: 800;
-    color: var(--primary);
+    color: var(--accent-warm);
+}
+
+.visual-score {
+    display: inline-block;
+    margin-bottom: 0.4rem;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .score-bar-bg {
     width: 100%;
     height: 6px;
-    background: rgba(79, 6, 249, 0.1);
+    background: rgba(255, 249, 235, 0.09);
     border-radius: 9999px;
     overflow: hidden;
 }
@@ -247,8 +274,8 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 .score-bar-fill {
     height: 100%;
     border-radius: 9999px;
-    background: linear-gradient(90deg, var(--primary), var(--accent-pink));
-    box-shadow: 0 0 12px rgba(79, 6, 249, 0.5);
+    background: linear-gradient(90deg, var(--accent-green), var(--accent-warm), var(--accent-rose));
+    box-shadow: 0 0 12px rgba(244, 182, 66, 0.35);
     transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -257,12 +284,12 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     font-size: 1.5rem;
     font-weight: 800;
     color: var(--text-primary);
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     margin-bottom: 0.25rem;
 }
 
 .section-accent {
-    color: var(--primary);
+    color: var(--accent-warm);
 }
 
 /* Upload area */
@@ -289,22 +316,22 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 }
 
 [data-testid="stFileUploader"] {
-    border-radius: 1.25rem !important;
+    border-radius: 0.75rem !important;
     overflow: hidden !important;
 }
 
 [data-testid="stFileUploadDropzone"] {
     border: 2px dashed var(--border-glow) !important;
-    border-radius: 1.25rem !important;
+    border-radius: 0.75rem !important;
     transition: all 0.3s ease !important;
-    background-color: rgba(79, 6, 249, 0.04) !important;
+    background-color: rgba(244, 182, 66, 0.05) !important;
     padding: 2.5rem 1.5rem !important;
 }
 
 [data-testid="stFileUploadDropzone"]:hover {
     border-color: var(--primary) !important;
-    box-shadow: 0 0 24px rgba(79, 6, 249, 0.15) !important;
-    background-color: rgba(79, 6, 249, 0.08) !important;
+    box-shadow: 0 0 24px rgba(244, 182, 66, 0.16) !important;
+    background-color: rgba(244, 182, 66, 0.08) !important;
 }
 
 [data-testid="stFileUploadDropzone"] > div:first-child > div:first-child > span {
@@ -312,7 +339,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 }
 
 [data-testid="stFileUploadDropzone"] > div:first-child > div:first-child > span::after {
-    content: '🖼️  Drop your image here or browse' !important;
+    content: 'Drop an image or browse' !important;
     font-size: 0.95rem !important;
     font-weight: 600 !important;
     color: var(--text-secondary) !important;
@@ -324,7 +351,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 }
 
 [data-testid="stFileUploadDropzone"] > div:first-child > div:first-child > small::after {
-    content: 'JPG, PNG, WEBP — Max 10 MB' !important;
+    content: 'JPG, PNG, WEBP - Max 10 MB' !important;
     font-size: 0.7rem !important;
     color: var(--text-muted) !important;
     font-weight: 500 !important;
@@ -353,7 +380,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 }
 
 [data-testid="stBaseButton-secondary"]:hover {
-    background-color: rgba(79, 6, 249, 0.25) !important;
+    background-color: rgba(244, 182, 66, 0.18) !important;
     border-color: var(--primary) !important;
 }
 
@@ -361,15 +388,15 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 .stTextInput input {
     background: var(--bg-card) !important;
     border: 1px solid var(--glass-border) !important;
-    border-radius: 0.75rem !important;
+    border-radius: 0.5rem !important;
     color: var(--text-primary) !important;
-    font-family: 'Inter', sans-serif !important;
+    font-family: 'Anek Devanagari', sans-serif !important;
     transition: all 0.3s ease !important;
 }
 
 .stTextInput input:focus {
     border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(79, 6, 249, 0.2) !important;
+    box-shadow: 0 0 0 3px rgba(244, 182, 66, 0.16) !important;
 }
 
 .stTextInput label {
@@ -378,22 +405,22 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 
 /* Buttons */
 .stButton > button {
-    background: linear-gradient(135deg, var(--primary), #6d28d9) !important;
-    color: white !important;
+    background: linear-gradient(135deg, #f4b642, #d05f73) !important;
+    color: #160f0a !important;
     border: none !important;
-    border-radius: 0.75rem !important;
-    font-family: 'Inter', sans-serif !important;
+    border-radius: 0.5rem !important;
+    font-family: 'Anek Devanagari', sans-serif !important;
     font-weight: 700 !important;
     letter-spacing: 0.08em !important;
     text-transform: uppercase !important;
     padding: 0.75rem 2rem !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    box-shadow: 0 4px 20px rgba(79, 6, 249, 0.3) !important;
+    box-shadow: 0 12px 30px rgba(244, 182, 66, 0.24) !important;
 }
 
 .stButton > button:hover {
     transform: translateY(-2px) scale(1.02) !important;
-    box-shadow: 0 8px 40px rgba(79, 6, 249, 0.5) !important;
+    box-shadow: 0 18px 42px rgba(244, 182, 66, 0.32) !important;
 }
 
 .stButton > button:active {
@@ -415,9 +442,9 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 }
 
 .stRadio [role="radiogroup"] label {
-    background: rgba(79, 6, 249, 0.06) !important;
+    background: rgba(255, 249, 235, 0.045) !important;
     border: 1px solid var(--glass-border) !important;
-    border-radius: 0.75rem !important;
+    border-radius: 0.5rem !important;
     padding: 0.6rem 1rem !important;
     color: var(--text-secondary) !important;
     font-weight: 600 !important;
@@ -428,7 +455,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 }
 
 .stRadio [role="radiogroup"] label:hover {
-    background: rgba(79, 6, 249, 0.12) !important;
+    background: rgba(244, 182, 66, 0.1) !important;
     border-color: var(--border-glow) !important;
     color: var(--text-primary) !important;
 }
@@ -438,7 +465,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     background: var(--primary-dim) !important;
     border-color: var(--primary) !important;
     color: var(--primary) !important;
-    box-shadow: 0 0 12px rgba(79, 6, 249, 0.2) !important;
+    box-shadow: 0 0 12px rgba(244, 182, 66, 0.16) !important;
 }
 
 .stRadio [role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {
@@ -453,7 +480,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 
 /* Image display */
 [data-testid="stImage"] {
-    border-radius: 1.25rem;
+    border-radius: 0.75rem;
     overflow: hidden;
     border: 1px solid var(--glass-border);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
@@ -479,7 +506,7 @@ audio {
     border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-pink);
+    background: var(--accent-green);
 }
 
 /* Tabs */
@@ -592,7 +619,7 @@ hr {
     transform: translateX(-50%);
     width: 600px;
     height: 600px;
-    background: radial-gradient(circle, rgba(79, 6, 249, 0.12) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(244, 182, 66, 0.12) 0%, transparent 70%);
     pointer-events: none;
     z-index: -1;
 }
@@ -615,4 +642,4 @@ hr {
     }
 }
 </style>
-"""
+""".replace("__GOOGLE_FONTS_URL__", GOOGLE_FONTS_URL)

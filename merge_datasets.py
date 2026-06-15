@@ -1,221 +1,332 @@
-"""
-Merge all Indian song datasets into the existing Music.csv
-Output: Single unified Music.csv with all songs
-"""
-import sys
-sys.stdout.reconfigure(encoding='utf-8')
-import pandas as pd
-import numpy as np
+"""Build the PictoMusic catalog from base, regional, and 2026 refresh datasets."""
+
+from __future__ import annotations
+
 import os
-import glob
+from pathlib import Path
 
-print("=" * 60)
-print("PICTOMUSIC 2.0 - Pan-Indian Dataset Merge")
-print("=" * 60)
+import numpy as np
+import pandas as pd
 
-# ── 1. Load existing Music.csv ──────────────────────────────
-print("\n[1/6] Loading existing Music.csv...")
-existing = pd.read_csv('Music.csv')
-print(f"  Existing songs: {len(existing):,}")
-print(f"  Columns: {list(existing.columns)}")
 
-# Target schema (from existing Music.csv)
+BASE_CATALOG = Path("Music_original_backup.csv")
+OUTPUT_CATALOG = Path("Music.csv")
+DATASETS_DIR = Path("datasets")
+
 TARGET_COLS = [
-    'name', 'artist', 'spotify_id', 'preview', 'img',
-    'danceability', 'energy', 'loudness', 'speechiness',
-    'acousticness', 'instrumentalness', 'liveness', 'valence',
-    'acousticness_artist', 'danceability_artist', 'energy_artist',
-    'instrumentalness_artist', 'liveness_artist', 'speechiness_artist',
-    'valence_artist'
+    "name",
+    "artist",
+    "spotify_id",
+    "preview",
+    "img",
+    "danceability",
+    "energy",
+    "loudness",
+    "speechiness",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "valence",
+    "acousticness_artist",
+    "danceability_artist",
+    "energy_artist",
+    "instrumentalness_artist",
+    "liveness_artist",
+    "speechiness_artist",
+    "valence_artist",
+    "release_year",
+    "release_date",
+    "popularity",
+    "duration_ms",
+    "album_name",
+    "album_type",
+    "track_url",
+    "catalog_year",
+    "source",
 ]
 
 AUDIO_FEATURES = [
-    'danceability', 'energy', 'loudness', 'speechiness',
-    'acousticness', 'instrumentalness', 'liveness', 'valence'
+    "danceability",
+    "energy",
+    "loudness",
+    "speechiness",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "valence",
 ]
 
 ARTIST_AGG_FEATURES = [
-    'acousticness', 'danceability', 'energy',
-    'instrumentalness', 'liveness', 'speechiness', 'valence'
+    "acousticness",
+    "danceability",
+    "energy",
+    "instrumentalness",
+    "liveness",
+    "speechiness",
+    "valence",
 ]
 
+METADATA_COLUMNS = [
+    "release_year",
+    "release_date",
+    "popularity",
+    "duration_ms",
+    "album_name",
+    "album_type",
+    "track_url",
+    "catalog_year",
+]
 
-# ── 2. Process spotify_tracks.csv (60K multi-language) ──────
-print("\n[2/6] Processing spotify_tracks.csv (multi-language)...")
-df_tracks = pd.read_csv('datasets/spotify_tracks.csv')
-print(f"  Total tracks: {len(df_tracks):,}")
-
-# Filter to Indian languages only
-indian_langs = ['Hindi', 'Tamil', 'Telugu', 'Malayalam']
-df_tracks_indian = df_tracks[df_tracks['language'].isin(indian_langs)].copy()
-print(f"  Indian tracks: {len(df_tracks_indian):,}")
-
-# Map columns
-df_tracks_indian = df_tracks_indian.rename(columns={
-    'track_name': 'name',
-    'artist_name': 'artist',
-    'track_id': 'spotify_id',
-    'artwork_url': 'img',
-})
-df_tracks_indian['preview'] = ''  # Will need Spotify API to fill
-df_tracks_indian['source'] = 'spotify_tracks'
-
-
-# ── 3. Process regional language CSVs (37K across 16 langs) ─
-print("\n[3/6] Processing regional language CSVs...")
-regional_files = sorted(glob.glob('datasets/*_songs.csv'))
-regional_dfs = []
-
-for fpath in regional_files:
-    lang = os.path.basename(fpath).replace('_songs.csv', '')
-    df_lang = pd.read_csv(fpath)
-    
-    # Rename columns to match target schema
-    df_lang = df_lang.rename(columns={
-        'song_name': 'name',
-        'singer': 'artist',
-        'singer_id': 'spotify_id',
-        'Valence': 'valence',
-    })
-    df_lang['img'] = ''        # Regional CSVs don't have artwork
-    df_lang['preview'] = ''    # No preview URLs
-    df_lang['source'] = f'regional_{lang}'
-    
-    regional_dfs.append(df_lang)
-    print(f"  {lang}: {len(df_lang):,} songs")
-
-df_regional = pd.concat(regional_dfs, ignore_index=True)
-print(f"  Total regional: {len(df_regional):,}")
+INDIAN_LANGS = {
+    "Hindi",
+    "Tamil",
+    "Telugu",
+    "Malayalam",
+    "Punjabi",
+    "Bengali",
+    "Marathi",
+    "Gujarati",
+}
 
 
-# ── 4. Process Bollywood 2024 (1.4K curated tracks) ─────────
-print("\n[4/6] Processing Bollywood 2024 dataset...")
-df_bollywood = pd.read_csv('datasets/data.csv')
-print(f"  Bollywood tracks: {len(df_bollywood):,}")
-
-df_bollywood = df_bollywood.rename(columns={
-    'song_name': 'name',
-    'artist_name': 'artist',
-    'track_spotify_id': 'spotify_id',
-    'thumbnail_link': 'img',
-})
-df_bollywood['preview'] = ''
-df_bollywood['source'] = 'bollywood_2024'
+def first_existing(*paths: str) -> Path | None:
+    for path in paths:
+        candidate = Path(path)
+        if candidate.exists():
+            return candidate
+    return None
 
 
-# ── 5. Merge everything ────────────────────────────────────
-print("\n[5/6] Merging all datasets...")
+def add_release_year(df: pd.DataFrame) -> pd.DataFrame:
+    if "release_year" in df.columns:
+        df["release_year"] = pd.to_numeric(df["release_year"], errors="coerce")
+        return df
+    if "year" in df.columns:
+        df["release_year"] = pd.to_numeric(df["year"], errors="coerce")
+    elif "release_date" in df.columns:
+        df["release_year"] = pd.to_datetime(df["release_date"], errors="coerce").dt.year
+    else:
+        df["release_year"] = np.nan
+    return df
 
-# Standardize each dataset to have the required audio feature columns
-def standardize(df, name):
-    """Ensure all required audio feature columns exist."""
-    for col in AUDIO_FEATURES:
+
+def normalize_spotify_tracks(path: Path, source_prefix: str) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    print(f"  {path}: {len(df):,} total tracks")
+    if "language" in df.columns:
+        df = df[df["language"].isin(INDIAN_LANGS)].copy()
+    print(f"  {path}: {len(df):,} Indian-language tracks")
+
+    df = df.rename(
+        columns={
+            "track_name": "name",
+            "artist_name": "artist",
+            "track_id": "spotify_id",
+            "artwork_url": "img",
+            "year": "release_year",
+        }
+    )
+    df["preview"] = ""
+    df["catalog_year"] = 2026 if source_prefix.endswith("2026") else np.nan
+    if "language" in df.columns:
+        df["source"] = source_prefix + "_" + df["language"].astype(str)
+    else:
+        df["source"] = source_prefix
+    return add_release_year(df)
+
+
+def normalize_spotify_data_2026(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    print(f"  {path}: {len(df):,} tracks")
+    df = df.rename(
+        columns={
+            "Song Name": "name",
+            "Artists": "artist",
+            "Released Dates": "release_date",
+            "Popularity": "popularity",
+            "Duration": "duration_ms",
+            "Album Type": "album_type",
+            "Cover Image": "img",
+        }
+    )
+    df["spotify_id"] = ""
+    df["preview"] = ""
+    df["track_url"] = ""
+    df["catalog_year"] = 2026
+    df["source"] = "spotify_data_2026"
+    return add_release_year(df)
+
+
+def normalize_regional_datasets() -> pd.DataFrame:
+    frames: list[pd.DataFrame] = []
+    for path in sorted(DATASETS_DIR.glob("*_songs.csv")):
+        lang = path.name.replace("_songs.csv", "")
+        df = pd.read_csv(path)
+        df = df.rename(
+            columns={
+                "song_name": "name",
+                "singer": "artist",
+                "singer_id": "spotify_id",
+                "Valence": "valence",
+            }
+        )
+        df["img"] = ""
+        df["preview"] = ""
+        df["source"] = f"regional_{lang}"
+        df["release_year"] = np.nan
+        df["release_date"] = ""
+        df["popularity"] = np.nan
+        df["catalog_year"] = np.nan
+        frames.append(df)
+        print(f"  {lang}: {len(df):,} songs")
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def normalize_bollywood_2024(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    print(f"  Bollywood 2024: {len(df):,} tracks")
+    df = df.rename(
+        columns={
+            "song_name": "name",
+            "artist_name": "artist",
+            "track_spotify_id": "spotify_id",
+            "thumbnail_link": "img",
+        }
+    )
+    df["preview"] = ""
+    df["source"] = "bollywood_2024"
+    df["release_year"] = 2024
+    df["release_date"] = ""
+    df["catalog_year"] = 2024
+    return df
+
+
+def standardize(df: pd.DataFrame, label: str) -> pd.DataFrame:
+    df = df.copy()
+    for col in TARGET_COLS:
         if col not in df.columns:
-            df[col] = np.nan
-    
-    # Keep only relevant columns + source
-    keep_cols = ['name', 'artist', 'spotify_id', 'preview', 'img'] + AUDIO_FEATURES + ['source']
-    available = [c for c in keep_cols if c in df.columns]
-    missing = [c for c in keep_cols if c not in df.columns]
-    if missing:
-        for c in missing:
-            df[c] = '' if c in ['name', 'artist', 'spotify_id', 'preview', 'img', 'source'] else np.nan
-    
-    result = df[keep_cols].copy()
-    print(f"  {name}: {len(result):,} rows, {result['spotify_id'].notna().sum():,} with spotify_id")
+            df[col] = "" if col in {"name", "artist", "spotify_id", "preview", "img", "source"} else np.nan
+
+    for col in AUDIO_FEATURES + ["popularity", "duration_ms", "release_year", "catalog_year"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    result = df[TARGET_COLS].copy()
+    has_ids = result["spotify_id"].fillna("").astype(str).str.strip().ne("").sum()
+    print(f"  {label}: {len(result):,} rows, {has_ids:,} with spotify_id")
     return result
 
-existing['source'] = 'original'
-df_exist = standardize(existing, 'Original Music.csv')
-df_st = standardize(df_tracks_indian, 'Spotify Tracks (Indian)')
-df_rg = standardize(df_regional, 'Regional Languages')
-df_bw = standardize(df_bollywood, 'Bollywood 2024')
 
-# Combine all
-combined = pd.concat([df_exist, df_st, df_rg, df_bw], ignore_index=True)
-print(f"\n  Combined (before dedup): {len(combined):,}")
+def deduplicate(combined: pd.DataFrame) -> pd.DataFrame:
+    combined = combined.copy()
+    combined["name"] = combined["name"].fillna("").astype(str).str.strip()
+    combined["artist"] = combined["artist"].fillna("").astype(str).str.strip()
+    combined["spotify_id"] = combined["spotify_id"].fillna("").astype(str).str.strip()
 
-# Clean up
-combined['name'] = combined['name'].astype(str).str.strip()
-combined['artist'] = combined['artist'].astype(str).str.strip()
-combined['spotify_id'] = combined['spotify_id'].astype(str).str.strip()
+    combined = combined[
+        (combined["name"] != "")
+        & (combined["name"].str.lower() != "nan")
+        & (combined["artist"] != "")
+        & (combined["artist"].str.lower() != "nan")
+    ]
+    print(f"  After cleaning empty rows: {len(combined):,}")
 
-# Remove rows with no name or artist
-combined = combined[
-    (combined['name'] != '') & 
-    (combined['name'] != 'nan') & 
-    (combined['artist'] != '') & 
-    (combined['artist'] != 'nan')
-]
-print(f"  After cleaning empty rows: {len(combined):,}")
+    combined["has_preview"] = combined["preview"].astype(str).str.startswith("http").astype(int)
+    combined["has_img"] = combined["img"].astype(str).str.startswith("http").astype(int)
+    combined["release_year_num"] = pd.to_numeric(combined["release_year"], errors="coerce").fillna(0)
+    combined["popularity_num"] = pd.to_numeric(combined["popularity"], errors="coerce").fillna(0)
+    combined["richness"] = combined["has_preview"] + combined["has_img"]
+    combined = combined.sort_values(
+        ["richness", "release_year_num", "popularity_num"],
+        ascending=[False, False, False],
+    )
 
-# Deduplicate on spotify_id (prefer entries with more data)
-# Sort so that entries with preview/img come first
-combined['has_preview'] = combined['preview'].astype(str).str.startswith('http').astype(int)
-combined['has_img'] = combined['img'].astype(str).str.startswith('http').astype(int)
-combined['richness'] = combined['has_preview'] + combined['has_img']
-combined = combined.sort_values('richness', ascending=False)
-
-# Deduplicate — keep richest entry per spotify_id
-valid_ids = combined['spotify_id'].notna() & (combined['spotify_id'] != '') & (combined['spotify_id'] != 'nan')
-df_with_id = combined[valid_ids].drop_duplicates(subset=['spotify_id'], keep='first')
-df_no_id = combined[~valid_ids]
-# For songs without spotify_id, deduplicate on name+artist
-df_no_id = df_no_id.drop_duplicates(subset=['name', 'artist'], keep='first')
-
-combined = pd.concat([df_with_id, df_no_id], ignore_index=True)
-combined = combined.drop(columns=['has_preview', 'has_img', 'richness'])
-print(f"  After deduplication: {len(combined):,}")
+    valid_ids = combined["spotify_id"].notna() & combined["spotify_id"].ne("") & combined["spotify_id"].ne("nan")
+    with_id = combined[valid_ids].drop_duplicates(subset=["spotify_id"], keep="first")
+    no_id = combined[~valid_ids].drop_duplicates(subset=["name", "artist"], keep="first")
+    result = pd.concat([with_id, no_id], ignore_index=True)
+    return result.drop(columns=["has_preview", "has_img", "release_year_num", "popularity_num", "richness"])
 
 
-# ── 6. Compute artist aggregates ────────────────────────────
-print("\n[6/6] Computing artist-level aggregate features...")
+def add_artist_aggregates(df: pd.DataFrame) -> pd.DataFrame:
+    for col in ARTIST_AGG_FEATURES:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    artist_agg = df.groupby("artist")[ARTIST_AGG_FEATURES].mean()
+    artist_agg.columns = [f"{col}_artist" for col in ARTIST_AGG_FEATURES]
+    artist_agg = artist_agg.reset_index()
 
-artist_agg = combined.groupby('artist')[ARTIST_AGG_FEATURES].mean()
-artist_agg.columns = [f'{col}_artist' for col in ARTIST_AGG_FEATURES]
-artist_agg = artist_agg.reset_index()
+    for col in [f"{c}_artist" for c in ARTIST_AGG_FEATURES]:
+        if col in df.columns:
+            df = df.drop(columns=[col])
+    return df.merge(artist_agg, on="artist", how="left")
 
-# Drop existing artist columns if any
-for col in [f'{c}_artist' for c in ARTIST_AGG_FEATURES]:
-    if col in combined.columns:
-        combined = combined.drop(columns=[col])
 
-combined = combined.merge(artist_agg, on='artist', how='left')
+def main() -> None:
+    print("=" * 60)
+    print("PICTOMUSIC 2026 - Pan-Indian Dataset Merge")
+    print("=" * 60)
 
-# Reorder columns to match original schema + source column
-final_cols = TARGET_COLS + ['source']
-for col in final_cols:
-    if col not in combined.columns:
-        combined[col] = '' if col in ['name', 'artist', 'spotify_id', 'preview', 'img', 'source'] else np.nan
+    base_catalog = BASE_CATALOG if BASE_CATALOG.exists() else OUTPUT_CATALOG
+    print(f"\n[1/6] Loading base catalog: {base_catalog}")
+    existing = pd.read_csv(base_catalog)
+    existing["source"] = "original"
 
-combined = combined[final_cols]
+    print("\n[2/6] Processing Spotify refresh datasets")
+    spotify_tracks_path = first_existing("spotify_tracks.csv", "datasets/spotify_tracks.csv")
+    spotify_tracks = (
+        normalize_spotify_tracks(spotify_tracks_path, "spotify_tracks_2026")
+        if spotify_tracks_path
+        else pd.DataFrame()
+    )
+    spotify_data_path = first_existing("spotify_data.csv")
+    spotify_data = normalize_spotify_data_2026(spotify_data_path) if spotify_data_path else pd.DataFrame()
 
-# ── Save ────────────────────────────────────────────────────
-# Backup original
-if os.path.exists('Music_original_backup.csv'):
-    print("\n  Backup already exists, skipping...")
-else:
-    os.rename('Music.csv', 'Music_original_backup.csv')
-    print("\n  Backed up original as Music_original_backup.csv")
+    print("\n[3/6] Processing regional language datasets")
+    regional = normalize_regional_datasets()
 
-combined.to_csv('Music.csv', index=False)
-print(f"\n  SAVED: Music.csv ({len(combined):,} songs)")
+    print("\n[4/6] Processing Bollywood 2024 dataset")
+    bollywood_path = first_existing("data.csv", "datasets/data.csv")
+    bollywood = normalize_bollywood_2024(bollywood_path) if bollywood_path else pd.DataFrame()
 
-# Summary stats
-print("\n" + "=" * 60)
-print("MERGE COMPLETE - Summary")
-print("=" * 60)
-source_counts = combined['source'].value_counts()
-for source, count in source_counts.items():
-    print(f"  {source}: {count:,} songs")
-print(f"\n  TOTAL: {len(combined):,} songs")
+    print("\n[5/6] Standardizing and deduplicating")
+    frames = [
+        standardize(existing, "Original catalog"),
+        standardize(spotify_tracks, "Spotify tracks 2026"),
+        standardize(spotify_data, "Spotify data 2026"),
+        standardize(regional, "Regional languages"),
+        standardize(bollywood, "Bollywood 2024"),
+    ]
+    combined = pd.concat(frames, ignore_index=True)
+    print(f"  Combined before deduplication: {len(combined):,}")
+    combined = deduplicate(combined)
+    print(f"  After deduplication: {len(combined):,}")
 
-# Preview/img coverage
-has_preview = combined['preview'].astype(str).str.startswith('http').sum()
-has_img = combined['img'].astype(str).str.startswith('http').sum()
-print(f"\n  Songs with preview URL: {has_preview:,} ({100*has_preview/len(combined):.1f}%)")
-print(f"  Songs with album art: {has_img:,} ({100*has_img/len(combined):.1f}%)")
+    print("\n[6/6] Computing artist aggregates and saving")
+    combined = add_artist_aggregates(combined)
+    for col in TARGET_COLS:
+        if col not in combined.columns:
+            combined[col] = "" if col in {"name", "artist", "spotify_id", "preview", "img", "source"} else np.nan
+    combined = combined[TARGET_COLS]
 
-print("\n[IMPORTANT] You must now delete song_embeddings_fp16.npy")
-print("  and restart the app to regenerate embeddings for all songs.")
-print("  This will take 30-60 min on CPU.")
+    if not BASE_CATALOG.exists() and OUTPUT_CATALOG.exists():
+        os.rename(OUTPUT_CATALOG, BASE_CATALOG)
+        print(f"  Backed up original catalog as {BASE_CATALOG}")
+
+    combined.to_csv(OUTPUT_CATALOG, index=False)
+    print(f"\n  SAVED: {OUTPUT_CATALOG} ({len(combined):,} songs)")
+    print("\nSummary by source:")
+    for source, count in combined["source"].value_counts().items():
+        print(f"  {source}: {count:,}")
+    previews = combined["preview"].astype(str).str.startswith("http").sum()
+    artwork = combined["img"].astype(str).str.startswith("http").sum()
+    recent = pd.to_numeric(combined["release_year"], errors="coerce").ge(2025).sum()
+    refreshed = pd.to_numeric(combined["catalog_year"], errors="coerce").ge(2026).sum()
+    print(f"\n  Songs with preview URL: {previews:,} ({100 * previews / len(combined):.1f}%)")
+    print(f"  Songs with artwork: {artwork:,} ({100 * artwork / len(combined):.1f}%)")
+    print(f"  2025+ songs: {recent:,} ({100 * recent / len(combined):.1f}%)")
+    print(f"  2026 refresh rows: {refreshed:,} ({100 * refreshed / len(combined):.1f}%)")
+    print("\n[IMPORTANT] Regenerate song_embeddings_fp16.npy after this merge.")
+
+
+if __name__ == "__main__":
+    main()

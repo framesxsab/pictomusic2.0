@@ -19,3 +19,8 @@ datasets/
 # Python cache
 __pycache__/
 *.pyc
+
+# Local raw datasets
+data.csv
+spotify_data.csv
+spotify_tracks.csv

@@ -26,11 +26,13 @@ from config import (
     IMAGE_MOOD_KEYWORDS,
     MAX_IMAGE_PIXELS,
     MAX_TOKEN_LENGTH,
+    MAX_UPLOAD_SIZE_BYTES,
     MOOD_FETCH_MULTIPLIER,
     MOOD_RERANK_BOOST,
     MOOD_SIMILARITY_THRESHOLD,
     MOOD_TOP_N,
     REQUEST_TIMEOUT,
+    RETRIEVAL_CANDIDATE_MULTIPLIER,
 )
 from embeddings import (
     build_faiss_index,
@@ -39,11 +41,16 @@ from embeddings import (
     load_or_generate_embeddings,
 )
 from preprocess import build_enhanced_description, run_preprocessing
-from security import validate_image_url
+from ranking import (
+    apply_hybrid_ranking,
+    deduplicate_recommendations,
+    promote_preview_recommendations,
+)
+from security import validate_image_content, validate_image_url
 
 Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class ImageMusicRecommender:
@@ -81,9 +88,9 @@ class ImageMusicRecommender:
             ).to(self.device)
             self.processor = CLIPProcessor.from_pretrained(self.clip_model_name)
             self.clip_model.eval()
-            logging.info("CLIP model loaded on %s", self.device)
+            logger.info("CLIP model loaded on %s", self.device)
         except Exception as e:
-            logging.error("Error loading CLIP model: %s", e)
+            logger.error("Error loading CLIP model: %s", e, exc_info=True)
             self.clip_model = None
             self.processor = None
 
@@ -94,9 +101,9 @@ class ImageMusicRecommender:
                 existing_csv=self.dataset_path,
                 output_path=None,
             )
-            logging.info("Dataset loaded: %d songs", len(self.music_df))
+            logger.info("Dataset loaded: %d songs", len(self.music_df))
         except Exception as e:
-            logging.error("Error loading dataset: %s", e)
+            logger.error("Error loading dataset: %s", e, exc_info=True)
             self.music_df = None
 
     def _load_or_generate_embeddings(self) -> None:
@@ -132,9 +139,9 @@ class ImageMusicRecommender:
                 mood_texts, self.clip_model, self.processor, self.device,
                 batch_size=len(mood_texts),
             )
-            logging.info("Mood classification embeddings prepared (%d categories)", len(mood_texts))
+            logger.info("Mood classification embeddings prepared (%d categories)", len(mood_texts))
         except Exception as e:
-            logging.warning("Could not prepare mood embeddings: %s", e)
+            logger.warning("Could not prepare mood embeddings: %s", e)
             self.mood_text_embeddings = None
 
     def _classify_image_mood(self, image_embedding: np.ndarray) -> List[str]:
@@ -160,7 +167,7 @@ class ImageMusicRecommender:
 
             return list(set(mood_keywords))
         except Exception as e:
-            logging.warning("Mood classification failed: %s", e)
+            logger.warning("Mood classification failed: %s", e)
             return []
 
     def _rerank_with_mood(
@@ -205,6 +212,28 @@ class ImageMusicRecommender:
             missing.append("CLIP Model / Processor")
         return missing
 
+    def catalog_stats(self) -> dict:
+        """Return user-facing catalog health metrics."""
+        if self.music_df is None or self.music_df.empty:
+            return {"songs": 0, "india_pct": 0.0, "preview_pct": 0.0, "languages": 0}
+
+        df = self.music_df
+        india_pct = 0.0
+        if "india_affinity" in df.columns:
+            india_pct = float((df["india_affinity"].fillna(0) > 0).mean() * 100)
+
+        preview_pct = 0.0
+        if "preview" in df.columns:
+            preview_pct = float(df["preview"].astype(str).str.startswith("http").mean() * 100)
+
+        languages = int(df["language"].nunique()) if "language" in df.columns else 0
+        return {
+            "songs": int(len(df)),
+            "india_pct": india_pct,
+            "preview_pct": preview_pct,
+            "languages": languages,
+        }
+
     def _get_image_embedding(self, image_source) -> Optional[np.ndarray]:
         """Process various image sources into a CLIP embedding."""
         if self.clip_model is None or self.processor is None:
@@ -212,10 +241,15 @@ class ImageMusicRecommender:
 
         tmp_path: Optional[str] = None
         try:
-            if hasattr(image_source, "getvalue"):
+            if isinstance(image_source, Image.Image):
+                image = image_source.convert("RGB")
+
+            elif hasattr(image_source, "getvalue"):
+                image_bytes = image_source.getvalue()
+                validate_image_content(image_bytes)
                 suffix = Path(getattr(image_source, "name", "img.jpg")).suffix
                 with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    tmp.write(image_source.getvalue())
+                    tmp.write(image_bytes)
                     tmp_path = tmp.name
                 image = Image.open(tmp_path).convert("RGB")
 
@@ -225,10 +259,25 @@ class ImageMusicRecommender:
                     validated_url, stream=True, timeout=REQUEST_TIMEOUT
                 )
                 response.raise_for_status()
+
+                content_length = response.headers.get("Content-Length")
+                if content_length and int(content_length) > MAX_UPLOAD_SIZE_BYTES:
+                    raise ValueError(
+                        f"Remote image too large ({int(content_length)} bytes)"
+                    )
+
+                downloaded = 0
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
                     for chunk in response.iter_content(chunk_size=HTTP_CHUNK_SIZE):
+                        downloaded += len(chunk)
+                        if downloaded > MAX_UPLOAD_SIZE_BYTES:
+                            raise ValueError(
+                                "Remote image exceeds size limit during download"
+                            )
                         tmp.write(chunk)
                     tmp_path = tmp.name
+                with open(tmp_path, "rb") as f:
+                    validate_image_content(f.read())
                 image = Image.open(tmp_path).convert("RGB")
 
             else:
@@ -239,16 +288,16 @@ class ImageMusicRecommender:
             )
 
         except ValueError as ve:
-            logging.warning("Image validation failed: %s", ve)
+            logger.warning("Image validation failed: %s", ve)
             return None
         except requests.RequestException as re:
-            logging.error("HTTP error fetching image: %s", re)
+            logger.error("HTTP error fetching image: %s", re)
             return None
         except (OSError, IOError) as ie:
-            logging.error("Image file error: %s", ie)
+            logger.error("Image file error: %s", ie)
             return None
         except Exception as e:
-            logging.error("Error processing image: %s", e)
+            logger.error("Error processing image: %s", e, exc_info=True)
             return None
         finally:
             if tmp_path and os.path.exists(tmp_path):
@@ -262,22 +311,29 @@ class ImageMusicRecommender:
         image_source,
         top_k: int = DEFAULT_TOP_K,
         show_scores: bool = True,
+        preferred_language: str = "any",
+        preferred_region: str = "any",
+        prefer_recent: bool = True,
+        require_preview: bool = False,
     ) -> pd.DataFrame:
         """Get music recommendations for an image.
         Returns a DataFrame with song info and similarity scores.
         """
         if not self.is_ready:
-            logging.error("Recommender not fully initialized.")
+            logger.error("Recommender not fully initialized.")
             return pd.DataFrame()
 
         img_emb = self._get_image_embedding(image_source)
         if img_emb is None:
-            logging.error("Failed to process image.")
+            logger.error("Failed to process image.")
             return pd.DataFrame()
 
         try:
             # Fetch more candidates for re-ranking
-            fetch_k = min(top_k * MOOD_FETCH_MULTIPLIER, self.index.ntotal)
+            candidate_multiplier = max(MOOD_FETCH_MULTIPLIER, RETRIEVAL_CANDIDATE_MULTIPLIER)
+            if preferred_language != "any" or preferred_region != "any":
+                candidate_multiplier = max(candidate_multiplier, 200)
+            fetch_k = min(top_k * candidate_multiplier, self.index.ntotal)
             distances, indices = self.index.search(img_emb.astype("float32"), fetch_k)
             results = self.music_df.iloc[indices[0]].copy()
 
@@ -288,11 +344,22 @@ class ImageMusicRecommender:
             mood_keywords = self._classify_image_mood(img_emb)
             if mood_keywords:
                 results = self._rerank_with_mood(results, mood_keywords)
-                logging.info("Re-ranked with mood: %s", mood_keywords[:5])
+                logger.info("Re-ranked with mood: %s", mood_keywords[:5])
+
+            results = apply_hybrid_ranking(
+                results,
+                preferred_language=preferred_language,
+                preferred_region=preferred_region,
+                prefer_recent=prefer_recent,
+                require_preview=require_preview,
+            )
+            results = deduplicate_recommendations(results)
+            if not require_preview:
+                results = promote_preview_recommendations(results, target_size=top_k)
 
             # Return top_k after re-ranking
             return results.head(top_k).reset_index(drop=True)
 
         except Exception as e:
-            logging.error("Error during search: %s", e)
+            logger.error("Error during search: %s", e, exc_info=True)
             return pd.DataFrame()
