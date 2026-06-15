@@ -200,22 +200,3 @@ class RateLimiter:
             return 0.0
         oldest = min(timestamps)
         return max(0.0, oldest + self.window_seconds - now)
-
-
-def inject_csp_headers() -> None:
-    """Inject Content-Security-Policy via meta tag."""
-    import streamlit as st
-    csp = (
-        "default-src 'self'; "
-        f"img-src 'self' {CSP_IMG_SOURCES}; "
-        f"media-src 'self' {CSP_MEDIA_SOURCES}; "
-        f"style-src 'self' {CSP_STYLE_SOURCES}; "
-        f"font-src {CSP_FONT_SOURCES}; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-        "connect-src 'self' https://*; "
-        f"frame-ancestors 'self' {CSP_FRAME_ANCESTORS};"
-    )
-    st.markdown(
-        f'<meta http-equiv="Content-Security-Policy" content="{csp}">',
-        unsafe_allow_html=True,
-    )
