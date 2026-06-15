@@ -91,12 +91,26 @@ with col_main:
             try:
                 @st.cache_resource(show_spinner=False)
                 def get_recommender():
-                    recommender = ImageMusicRecommender()
+                    status_placeholder = st.empty()
+                    progress_placeholder = st.empty()
+
+                    def progress_cb(current, total):
+                        pct = int((current / total) * 100)
+                        status_placeholder.text(f"Regenerating CLIP embeddings for {total:,} songs... ({pct}%)")
+                        progress_placeholder.progress(current / total)
+
+                    status_placeholder.text("Initializing CLIP model and loading 91K song catalog...")
+                    recommender = ImageMusicRecommender(progress_callback=progress_cb)
+
+                    status_placeholder.empty()
+                    progress_placeholder.empty()
+
                     if not recommender.is_ready:
                         st.cache_resource.clear()
                     return recommender
 
-                recommender = get_recommender()
+                with st.spinner("Loading recommendation engine and FAISS index..."):
+                    recommender = get_recommender()
 
                 if recommender.is_ready:
                     with st.spinner("Reading the image and ranking Indian music matches..."):

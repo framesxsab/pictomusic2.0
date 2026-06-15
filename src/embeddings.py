@@ -34,6 +34,7 @@ def generate_text_embeddings(
     device: torch.device,
     batch_size: int = EMBEDDING_BATCH_SIZE,
     max_length: int = MAX_TOKEN_LENGTH,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> np.ndarray:
     """Batch-encode texts into L2-normalized CLIP embeddings."""
     all_embeddings = []
@@ -58,6 +59,9 @@ def generate_text_embeddings(
         batch_num = i // batch_size
         if batch_num % 100 == 0 and batch_num > 0:
             logger.info("  Batch %d / %d", batch_num, total_batches)
+
+        if progress_callback:
+            progress_callback(min(i + batch_size, len(texts)), len(texts))
 
     result = torch.cat(all_embeddings, dim=0).numpy()
     logger.info("Generated embeddings: shape %s", result.shape)
@@ -90,6 +94,7 @@ def load_or_generate_embeddings(
     model: Optional[CLIPModel],
     processor: Optional[CLIPProcessor],
     device: Optional[torch.device],
+    progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> Optional[np.ndarray]:
     """Load cached embeddings or regenerate if shape doesn't match."""
     if os.path.exists(embeddings_path):
@@ -110,7 +115,9 @@ def load_or_generate_embeddings(
         logger.error("Cannot generate embeddings — missing model/texts.")
         return None
 
-    embeddings = generate_text_embeddings(texts, model, processor, device)
+    embeddings = generate_text_embeddings(
+        texts, model, processor, device, progress_callback=progress_callback
+    )
     if embeddings is not None:
         try:
             np.save(embeddings_path, embeddings.astype(np.float16))

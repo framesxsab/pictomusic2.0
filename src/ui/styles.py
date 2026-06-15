@@ -153,11 +153,48 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
     border-radius: 0.75rem;
-    padding: 1.5rem;
+    padding: 1.25rem;
     margin-bottom: 0.75rem;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+}
+
+.song-art-container {
+    flex-shrink: 0;
+    width: 90px;
+    height: 90px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.song-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.song-card:hover .song-art {
+    transform: scale(1.06);
+}
+
+.song-art-placeholder {
+    font-size: 2rem;
+    color: var(--text-muted);
+}
+
+.song-details {
+    flex: 1;
+    min-width: 0;
 }
 
 .song-card::before {
@@ -184,8 +221,6 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 }
 
 .song-rank {
-    font-size: 0.65rem;
-    font-weight: 800;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--accent-warm);

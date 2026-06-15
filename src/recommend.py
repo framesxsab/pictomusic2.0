@@ -7,7 +7,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import faiss
 import numpy as np
@@ -61,6 +61,7 @@ class ImageMusicRecommender:
         clip_model_name: str = CLIP_MODEL_NAME,
         embeddings_path: Optional[str] = None,
         dataset_path: Optional[str] = None,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
     ):
         self.clip_model_name = clip_model_name
         self.embeddings_path = embeddings_path or EMBEDDINGS_PATH
@@ -76,7 +77,7 @@ class ImageMusicRecommender:
 
         self._load_models()
         self._load_dataset()
-        self._load_or_generate_embeddings()
+        self._load_or_generate_embeddings(progress_callback=progress_callback)
         self._build_faiss_index()
         self._prepare_mood_embeddings()
 
@@ -106,7 +107,7 @@ class ImageMusicRecommender:
             logger.error("Error loading dataset: %s", e, exc_info=True)
             self.music_df = None
 
-    def _load_or_generate_embeddings(self) -> None:
+    def _load_or_generate_embeddings(self, progress_callback: Optional[Callable[[int, int], None]] = None) -> None:
         """Load cached embeddings or generate from dataset."""
         if self.music_df is None:
             return
@@ -119,6 +120,7 @@ class ImageMusicRecommender:
             model=self.clip_model,
             processor=self.processor,
             device=self.device,
+            progress_callback=progress_callback,
         )
 
     def _build_faiss_index(self) -> None:

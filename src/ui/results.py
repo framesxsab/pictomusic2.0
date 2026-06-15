@@ -102,6 +102,8 @@ def render_results(recommendations: pd.DataFrame, catalog_stats: dict | None = N
                 release_year = str(row.get(year_col, "")).replace(".0", "")
                 break
 
+        img_url = str(row.get("img", "")) if "img" in recommendations.columns else ""
+
         render_song_card(
             idx,
             song_name,
@@ -113,6 +115,7 @@ def render_results(recommendations: pd.DataFrame, catalog_stats: dict | None = N
             region,
             visual_score,
             release_year,
+            img_url,
         )
 
         preview = str(row.get("preview", "")) if "preview" in recommendations.columns else ""

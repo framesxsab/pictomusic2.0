@@ -64,6 +64,7 @@ def render_song_card(
     region: str = "",
     visual_score: float | None = None,
     release_year: str = "",
+    img_url: str = "",
 ) -> None:
     """Render a single song recommendation card."""
     import streamlit as st
@@ -80,6 +81,7 @@ def render_song_card(
             region,
             visual_score,
             release_year,
+            img_url,
         ),
         unsafe_allow_html=True,
     )
@@ -96,10 +98,17 @@ def build_song_card_html(
     region: str = "",
     visual_score: float | None = None,
     release_year: str = "",
+    img_url: str = "",
 ) -> str:
     """Build card HTML without leading indentation that Markdown can treat as code."""
     safe_name = escape_html(song_name)
     safe_artist = escape_html(artist_name)
+    safe_img_url = escape_html(img_url) if img_url and img_url.startswith("http") else ""
+
+    if safe_img_url:
+        art_html = f'<div class="song-art-container"><img class="song-art" src="{safe_img_url}" alt="{safe_name} cover"></div>'
+    else:
+        art_html = '<div class="song-art-container"><span class="song-art-placeholder">🎵</span></div>'
 
     tags_html = ""
     if genre or language or region or release_year:
@@ -125,6 +134,8 @@ def build_song_card_html(
         line
         for line in [
             '<div class="song-card">',
+            art_html,
+            '<div class="song-details">',
             f'<div class="song-rank">Track #{idx + 1}</div>',
             f'<div class="song-name">{safe_name}</div>',
             f'<div class="song-artist">{safe_artist}</div>',
@@ -137,6 +148,7 @@ def build_song_card_html(
             visual_html,
             '<div class="score-bar-bg">',
             f'<div class="score-bar-fill" style="width: {score_pct:.1f}%;"></div>',
+            '</div>',
             '</div>',
             '</div>',
             '</div>',
