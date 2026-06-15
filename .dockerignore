@@ -1,0 +1,41 @@
+# Git and GitHub metadata
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local configuration and environment variables
+.env
+.env.*
+
+# Local datasets and raw source files
+data.csv
+spotify_data.csv
+spotify_tracks.csv
+Music_original_backup.csv
+datasets/
+
+# Local/temporary files
+tmp/
+temp/
+tests/
+whats_left.md
+walkthrough.md
+task.md
+implementation_plan.md
+*.log
