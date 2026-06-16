@@ -57,7 +57,7 @@ def render_results(recommendations: pd.DataFrame, catalog_stats: dict | None = N
     )
     st.markdown(
         '<p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">'
-        "Tracks ranked by visual match, Indian relevance, currentness, and playable metadata</p>",
+        "Tracks ranked by visual match, mood relevance, currentness, and playable metadata</p>",
         unsafe_allow_html=True,
     )
 
