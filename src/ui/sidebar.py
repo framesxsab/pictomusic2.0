@@ -43,7 +43,7 @@ def render_sidebar() -> dict:
                     </div>
                     <div style="font-size: 0.6rem; font-weight: 700; color: var(--accent-warm);
                                 letter-spacing: 0.2em; text-transform: uppercase;">
-                        India Retrieval
+                        Global Retrieval
                     </div>
                 </div>
             </div>
@@ -67,6 +67,7 @@ def render_sidebar() -> dict:
         region_label = st.selectbox("Region", list(REGION_OPTIONS.keys()), index=0)
         prefer_recent = st.toggle("Prioritize newer releases", value=True)
         require_preview = st.toggle("Only songs with audio previews", value=False)
+        boost_indian = st.toggle("Prioritize Indian music", value=False)
 
         top_k = st.slider("Results", min_value=5, max_value=25, value=10, step=5)
 
@@ -83,10 +84,10 @@ def render_sidebar() -> dict:
                 <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
                     <span style="color: var(--accent-warm); font-weight: 800;">CLIP</span> visual vectors,
                     <span style="color: var(--accent-green); font-weight: 800;">FAISS</span> candidate search,
-                    and hybrid ranking for Indian language, region, recency, and playable previews.
+                    and hybrid ranking for global language, region, recency, and playable previews.
                     <br><br>
                     <span style="font-size: 0.7rem; color: var(--text-muted);">
-                        Bollywood, Punjabi, Tamil, Telugu, Bengali, Marathi, Gujarati, Bhojpuri and more.
+                        Global charts, Pop, Rock, Hip-Hop, Bollywood, Punjabi, Tamil, Telugu and more.
                     </span>
                 </div>
             </div>
@@ -100,5 +101,6 @@ def render_sidebar() -> dict:
         "preferred_region": REGION_OPTIONS[region_label],
         "prefer_recent": prefer_recent,
         "require_preview": require_preview,
+        "boost_indian": boost_indian,
         "top_k": top_k,
     }

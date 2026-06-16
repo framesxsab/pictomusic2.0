@@ -317,6 +317,7 @@ class ImageMusicRecommender:
         preferred_region: str = "any",
         prefer_recent: bool = True,
         require_preview: bool = False,
+        boost_indian: bool = False,
     ) -> pd.DataFrame:
         """Get music recommendations for an image.
         Returns a DataFrame with song info and similarity scores.
@@ -354,6 +355,7 @@ class ImageMusicRecommender:
                 preferred_region=preferred_region,
                 prefer_recent=prefer_recent,
                 require_preview=require_preview,
+                boost_indian=boost_indian,
             )
             results = deduplicate_recommendations(results)
             if not require_preview:

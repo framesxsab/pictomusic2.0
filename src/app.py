@@ -1,5 +1,6 @@
 """PictoMusic - AI Music Discovery main Streamlit entrypoint."""
 
+import io
 import logging
 
 import streamlit as st
@@ -14,10 +15,14 @@ from config import (
     APP_SUBTITLE,
     APP_TITLE,
     APP_VERSION_TAG,
+    HTTP_CHUNK_SIZE,
+    MAX_UPLOAD_SIZE_BYTES,
+    REQUEST_TIMEOUT,
 )
 from recommend import ImageMusicRecommender
 from security import (
     RateLimiter,
+    validate_image_content,
     validate_image_url,
     validate_uploaded_file,
 )
@@ -46,6 +51,13 @@ image_source = None
 col_pad_l, col_main, col_pad_r = st.columns([1, 3, 1])
 
 with col_main:
+    # Reset cache when switching upload method
+    if st.session_state.get("last_image_source_option") != image_source_option:
+        st.session_state["last_image_source_option"] = image_source_option
+        st.session_state.pop("cached_file_key", None)
+        st.session_state.pop("cached_image_bytes", None)
+        st.session_state.pop("cached_file_error", None)
+
     if image_source_option == "Upload Image":
         uploaded_file = st.file_uploader(
             "Drop your image here",
@@ -53,12 +65,29 @@ with col_main:
             label_visibility="collapsed",
         )
         if uploaded_file is not None:
-            try:
-                validate_uploaded_file(uploaded_file)
-                st.image(uploaded_file, use_container_width=True)
-                image_source = uploaded_file
-            except ValueError as exc:
-                st.error(f"Image validation failed: {exc}")
+            cache_key = f"{uploaded_file.name}_{uploaded_file.size}"
+            if st.session_state.get("cached_file_key") != cache_key:
+                try:
+                    validate_uploaded_file(uploaded_file)
+                    st.session_state["cached_file_key"] = cache_key
+                    st.session_state["cached_image_bytes"] = uploaded_file.getvalue()
+                    st.session_state["cached_file_error"] = None
+                except ValueError as exc:
+                    st.session_state["cached_file_key"] = cache_key
+                    st.session_state["cached_image_bytes"] = None
+                    st.session_state["cached_file_error"] = str(exc)
+
+            if st.session_state.get("cached_file_error"):
+                st.error(f"Image validation failed: {st.session_state['cached_file_error']}")
+            elif st.session_state.get("cached_image_bytes"):
+                st.image(st.session_state["cached_image_bytes"], use_container_width=True)
+                image_source = io.BytesIO(st.session_state["cached_image_bytes"])
+                image_source.name = uploaded_file.name
+        else:
+            # Clear cache when file is removed
+            st.session_state.pop("cached_file_key", None)
+            st.session_state.pop("cached_image_bytes", None)
+            st.session_state.pop("cached_file_error", None)
 
     elif image_source_option == "Image URL":
         image_url = st.text_input(
@@ -67,15 +96,61 @@ with col_main:
             label_visibility="collapsed",
         )
         if image_url:
-            try:
-                validated_url = validate_image_url(image_url)
-                st.image(validated_url, use_container_width=True)
-                image_source = validated_url
-            except ValueError as exc:
-                st.error(f"URL validation failed: {exc}")
-            except Exception as exc:
-                logging.warning("Image URL error: %s", exc)
-                st.warning("Could not load image from this URL. Please check the link and try again.")
+            cache_key = f"url_{image_url}"
+            if st.session_state.get("cached_file_key") != cache_key:
+                try:
+                    validated_url = validate_image_url(image_url)
+                    import requests
+                    response = requests.get(
+                        validated_url, stream=True, timeout=REQUEST_TIMEOUT
+                    )
+                    response.raise_for_status()
+
+                    content_length = response.headers.get("Content-Length")
+                    if content_length and int(content_length) > MAX_UPLOAD_SIZE_BYTES:
+                        raise ValueError(
+                            f"Remote image too large ({int(content_length)} bytes)"
+                        )
+
+                    downloaded = []
+                    downloaded_size = 0
+                    for chunk in response.iter_content(chunk_size=HTTP_CHUNK_SIZE):
+                        downloaded_size += len(chunk)
+                        if downloaded_size > MAX_UPLOAD_SIZE_BYTES:
+                            raise ValueError(
+                                "Remote image exceeds size limit during download"
+                            )
+                        downloaded.append(chunk)
+
+                    image_bytes = b"".join(downloaded)
+                    validate_image_content(image_bytes)
+
+                    st.session_state["cached_file_key"] = cache_key
+                    st.session_state["cached_image_bytes"] = image_bytes
+                    st.session_state["cached_file_error"] = None
+                except ValueError as exc:
+                    st.session_state["cached_file_key"] = cache_key
+                    st.session_state["cached_image_bytes"] = None
+                    st.session_state["cached_file_error"] = str(exc)
+                except Exception as exc:
+                    logging.warning("Image URL error: %s", exc)
+                    st.session_state["cached_file_key"] = cache_key
+                    st.session_state["cached_image_bytes"] = None
+                    st.session_state["cached_file_error"] = (
+                        "Could not load image from this URL. Please check the link and try again."
+                    )
+
+            if st.session_state.get("cached_file_error"):
+                st.error(f"URL validation failed: {st.session_state['cached_file_error']}")
+            elif st.session_state.get("cached_image_bytes"):
+                st.image(st.session_state["cached_image_bytes"], use_container_width=True)
+                image_source = io.BytesIO(st.session_state["cached_image_bytes"])
+                image_source.name = "url_image.jpg"
+        else:
+            # Clear cache when URL is empty
+            st.session_state.pop("cached_file_key", None)
+            st.session_state.pop("cached_image_bytes", None)
+            st.session_state.pop("cached_file_error", None)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -113,7 +188,12 @@ with col_main:
                     recommender = get_recommender()
 
                 if recommender.is_ready:
-                    with st.spinner("Reading the image and ranking Indian music matches..."):
+                    spinner_msg = (
+                        "Reading the image and ranking Indian music matches..."
+                        if retrieval_options["boost_indian"]
+                        else "Reading the image and ranking music matches..."
+                    )
+                    with st.spinner(spinner_msg):
                         recommendations = recommender.recommend(
                             image_source,
                             top_k=retrieval_options["top_k"],
@@ -121,6 +201,7 @@ with col_main:
                             preferred_region=retrieval_options["preferred_region"],
                             prefer_recent=retrieval_options["prefer_recent"],
                             require_preview=retrieval_options["require_preview"],
+                            boost_indian=retrieval_options["boost_indian"],
                         )
 
                     if not recommendations.empty:

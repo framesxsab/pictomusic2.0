@@ -91,9 +91,9 @@ MAX_IMAGE_PIXELS = int(os.getenv("PICTOMUSIC_MAX_IMAGE_PIXELS", "25000000"))
 
 APP_TITLE = "Pictomusic"
 APP_ICON = "\U0001f3b5"
-APP_SUBTITLE = "Image-to-song discovery tuned for Indian moods, languages, and charts"
-APP_VERSION_TAG = "v2026 India Retrieval"
-HERO_TITLE = "FIND THE INDIAN SOUND<br>INSIDE YOUR IMAGE"
+APP_SUBTITLE = "Image-to-song discovery tuned for global moods, languages, and charts"
+APP_VERSION_TAG = "v2026 World Retrieval"
+HERO_TITLE = "FIND THE SOUNDTRACK<br>INSIDE YOUR IMAGE"
 
 # --- India-first retrieval ---
 INDIAN_LANGUAGE_CODES = {

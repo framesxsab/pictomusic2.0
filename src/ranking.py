@@ -156,6 +156,7 @@ def apply_hybrid_ranking(
     preferred_region: str = "any",
     prefer_recent: bool = True,
     require_preview: bool = False,
+    boost_indian: bool = False,
 ) -> pd.DataFrame:
     """Blend CLIP similarity with India, metadata, freshness, and media quality."""
     if results.empty:
@@ -166,7 +167,7 @@ def apply_hybrid_ranking(
     ranked["visual_score"] = base
     ranked["hybrid_score"] = base
 
-    if "india_affinity" in ranked.columns:
+    if boost_indian and "india_affinity" in ranked.columns:
         ranked["hybrid_score"] += ranked["india_affinity"].fillna(0.0) * INDIA_RELEVANCE_WEIGHT
 
     preferred_language = _norm(preferred_language)

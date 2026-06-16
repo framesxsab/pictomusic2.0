@@ -134,3 +134,37 @@ def test_preview_promotion_favors_previews_but_keeps_important_match():
 
     assert visible.iloc[0]["id"] == "important_non_preview"
     assert visible["preview"].astype(str).str.startswith("http").sum() == 2
+
+
+def test_hybrid_ranking_boosts_india_affinity_conditionally():
+    results = pd.DataFrame(
+        {
+            "name": ["Global song", "Tamil song"],
+            "artist": ["Global Artist", "Anirudh"],
+            "similarity_score": [0.50, 0.47],
+            "india_affinity": [0.0, 1.0],
+            "language": ["en", "ta"],
+            "region": ["western", "south_indian"],
+            "preview": ["", ""],
+            "img": ["", ""],
+            "release_year": [2020, 2024],
+        }
+    )
+
+    # With boost_indian=False
+    ranked_no_boost = apply_hybrid_ranking(
+        results,
+        boost_indian=False,
+        prefer_recent=False,
+    )
+    # The global song has higher similarity, and no india boost is applied, so it stays first
+    assert ranked_no_boost.iloc[0]["name"] == "Global song"
+
+    # With boost_indian=True
+    ranked_boost = apply_hybrid_ranking(
+        results,
+        boost_indian=True,
+        prefer_recent=False,
+    )
+    # The Tamil song has lower similarity but high india affinity boost, so it goes first
+    assert ranked_boost.iloc[0]["name"] == "Tamil song"
