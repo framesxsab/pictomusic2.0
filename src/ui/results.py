@@ -51,6 +51,35 @@ def render_results(recommendations: pd.DataFrame, catalog_stats: dict | None = N
             render_stat_card("Tracks Found", str(num_results), "tracks", "var(--accent-warm)")
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # Render detected visual themes/moods if available
+    detected_themes = st.session_state.get("detected_themes", [])
+    if detected_themes:
+        badges = "".join(
+            f'<span style="display: inline-block; background: var(--primary-dim); border: 1px solid var(--border-glow); '
+            f'color: var(--accent-warm); font-size: 0.72rem; font-weight: 700; border-radius: 9999px; '
+            f'padding: 0.3rem 0.75rem; margin-right: 0.4rem; margin-bottom: 0.4rem; text-transform: uppercase; '
+            f'letter-spacing: 0.05em;">'
+            f'{escape_html(theme)}</span>'
+            for theme in detected_themes
+        )
+        st.markdown(
+            f"""
+            <div style="background: rgba(255, 249, 235, 0.02); border: 1px solid var(--glass-border);
+                        border-radius: 0.75rem; padding: 0.85rem 1rem; margin-bottom: 1.5rem; display: flex;
+                        align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted);
+                            text-transform: uppercase; letter-spacing: 0.1em; flex-shrink: 0;">
+                    Detected Visual Themes
+                </span>
+                <div style="display: flex; flex-wrap: wrap; align-items: center;">
+                    {badges}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     st.markdown(
         '<div class="section-header">Music <span class="section-accent">Recommendations</span></div>',
         unsafe_allow_html=True,

@@ -114,6 +114,11 @@ TITLE_TAG_OVERRIDES = {
     "gidda": ("pa", "punjabi", "punjabi"),
 }
 
+BOLLYWOOD_ROMANTIC_TITLE_HINTS = {
+    "dil", "ishq", "pyaar", "maahi", "sajna", "tere", "meri", "tum",
+    "naina", "channa", "zindagi",
+}
+
 
 def contains_title_hint(title: str, hints: set[str]) -> bool:
     """Match Indian title hints as words, not arbitrary English substrings."""
@@ -242,8 +247,17 @@ def infer_mood_tags(row: pd.Series) -> str:
         tags.append("instrumental")
 
     genre = str(row.get("genre", "")).lower()
+    language = str(row.get("language", "")).lower()
+    region = str(row.get("region", "")).lower()
     if genre in ("devotional", "classical", "sufi", "ghazal"):
         tags.append("devotional")
+
+    title = str(row.get("name", "")).lower()
+    if (
+        (language in {"hi", "ur"} or region == "bollywood" or genre in {"bollywood", "hindi", "ghazal"})
+        and contains_title_hint(title, BOLLYWOOD_ROMANTIC_TITLE_HINTS)
+    ):
+        tags.append("romantic")
 
     if genre in ("bhojpuri", "haryanvi", "rajasthani", "punjabi", "gujarati"):
         if danceability > 0.65 and energy > 0.55:

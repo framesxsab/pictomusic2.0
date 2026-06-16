@@ -100,13 +100,18 @@ class TestInferTagsFromSource:
 
     def test_indian_title_hints_do_not_match_english_substrings(self):
         df = pd.DataFrame({
-            "source": ["original", "original", "original"],
-            "name": ["Fools Gold - Remastered", "Futura Free", "Flightless Bird, American Mouth"],
-            "artist": ["The Stone Roses", "Frank Ocean", "Iron & Wine"],
+            "source": ["original", "original", "original", "original"],
+            "name": [
+                "Fools Gold - Remastered",
+                "Futura Free",
+                "Flightless Bird, American Mouth",
+                "Me Gustas Tu",
+            ],
+            "artist": ["The Stone Roses", "Frank Ocean", "Iron & Wine", "Manu Chao"],
         })
         result = infer_tags_from_source(df)
-        assert list(result["language"]) == ["en", "en", "en"]
-        assert list(result["region"]) == ["western", "western", "western"]
+        assert list(result["language"]) == ["en", "en", "en", "en"]
+        assert list(result["region"]) == ["western", "western", "western", "western"]
 
     def test_tags_regional_punjabi(self):
         df = pd.DataFrame({"source": ["regional_Punjabi"], "name": ["test"], "artist": ["test"]})
@@ -156,6 +161,21 @@ class TestInferMoodTags:
         tags = infer_mood_tags(row)
         assert "energetic" in tags
         assert "party" in tags
+
+    def test_bollywood_romantic_title_hint_adds_mood(self):
+        row = pd.Series({
+            "name": "Tum Hi Ho",
+            "language": "hi",
+            "genre": "bollywood",
+            "region": "bollywood",
+            "valence": 0.8,
+            "energy": 0.8,
+            "danceability": 0.4,
+            "acousticness": 0.2,
+            "instrumentalness": 0.0,
+        })
+        tags = infer_mood_tags(row)
+        assert "romantic" in tags
 
     def test_handles_nan_values(self):
         row = pd.Series({"valence": np.nan, "energy": 0.5, "danceability": 0.5,

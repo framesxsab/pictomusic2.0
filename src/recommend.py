@@ -11,6 +11,19 @@ from typing import Callable, List, Optional
 
 import faiss
 import numpy as np
+"""
+PictoMusic Recommendation Engine
+Image-to-music recommendation using CLIP embeddings, FAISS search, and mood re-ranking.
+"""
+
+import logging
+import os
+import tempfile
+from pathlib import Path
+from typing import Callable, List, Optional
+
+import faiss
+import numpy as np
 import pandas as pd
 import requests
 import torch
@@ -31,6 +44,9 @@ from config import (
     MOOD_RERANK_BOOST,
     MOOD_SIMILARITY_THRESHOLD,
     MOOD_TOP_N,
+    PREFERRED_FILTER_MIN_CANDIDATES,
+    PREFERRED_PREVIEW_IMPORTANCE_MARGIN,
+    RAG_ALPHA,
     REQUEST_TIMEOUT,
     RETRIEVAL_CANDIDATE_MULTIPLIER,
 )
@@ -44,6 +60,7 @@ from preprocess import build_enhanced_description, run_preprocessing
 from ranking import (
     apply_hybrid_ranking,
     deduplicate_recommendations,
+    prioritize_preference_matches,
     promote_preview_recommendations,
 )
 from security import validate_image_content, validate_image_url
@@ -74,6 +91,7 @@ class ImageMusicRecommender:
         self.index: Optional[faiss.IndexFlatIP] = None
         self.mood_text_embeddings: Optional[np.ndarray] = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.last_detected_themes: List[str] = []
 
         self._load_models()
         self._load_dataset()
@@ -162,6 +180,7 @@ class ImageMusicRecommender:
             mood_keys = list(IMAGE_MOOD_KEYWORDS.keys())
             top_indices = similarities.argsort()[-MOOD_TOP_N:][::-1]
             top_moods = [mood_keys[i] for i in top_indices if similarities[i] > MOOD_SIMILARITY_THRESHOLD]
+            self.last_detected_themes = top_moods  # ponytail: cache detected themes for the UI
 
             mood_keywords = []
             for mood in top_moods:
@@ -331,20 +350,52 @@ class ImageMusicRecommender:
             logger.error("Failed to process image.")
             return pd.DataFrame()
 
+        self.last_detected_themes = []  # Reset on each call
+
         try:
-            # Fetch more candidates for re-ranking
+            # 1. Zero-shot classify image categories and keywords
+            mood_keywords = self._classify_image_mood(img_emb)
+
+            # 2. RAG-based search query construction and embedding generation
+            # Construct a descriptive text query representing the visual scene
+            query_parts = []
+            if self.last_detected_themes:
+                query_parts.append(f"a photo of {', '.join(self.last_detected_themes)}")
+            if mood_keywords:
+                query_parts.append(f"{', '.join(mood_keywords)}")
+            
+            query_text = ", ".join(query_parts) if query_parts else "music recommendation"
+            
+            # Generate CLIP text embedding for the visual query description
+            # ponytail: use standard local generator to avoid new dependencies
+            query_text_emb = generate_text_embeddings(
+                [query_text],
+                self.clip_model,
+                self.processor,
+                self.device,
+                batch_size=1,
+            )
+
+            # 3. Blend raw image embedding with visual query text embedding
+            if query_text_emb is not None and RAG_ALPHA < 1.0:
+                blended_emb = RAG_ALPHA * img_emb + (1.0 - RAG_ALPHA) * query_text_emb
+                blended_emb = blended_emb / np.linalg.norm(blended_emb, axis=-1, keepdims=True)
+            else:
+                blended_emb = img_emb
+
+            # Fetch more candidates using the blended RAG embedding
             candidate_multiplier = max(MOOD_FETCH_MULTIPLIER, RETRIEVAL_CANDIDATE_MULTIPLIER)
+            min_candidates = top_k * candidate_multiplier
             if preferred_language != "any" or preferred_region != "any":
-                candidate_multiplier = max(candidate_multiplier, 200)
-            fetch_k = min(top_k * candidate_multiplier, self.index.ntotal)
-            distances, indices = self.index.search(img_emb.astype("float32"), fetch_k)
+                min_candidates = max(min_candidates, PREFERRED_FILTER_MIN_CANDIDATES)
+            fetch_k = min(min_candidates, self.index.ntotal)
+            distances, indices = self.index.search(blended_emb.astype("float32"), fetch_k)
             results = self.music_df.iloc[indices[0]].copy()
 
             if show_scores:
                 results["similarity_score"] = distances[0]
 
             # Mood-aware re-ranking
-            mood_keywords = self._classify_image_mood(img_emb)
             if mood_keywords:
                 results = self._rerank_with_mood(results, mood_keywords)
                 logger.info("Re-ranked with mood: %s", mood_keywords[:5])
@@ -358,8 +409,43 @@ class ImageMusicRecommender:
                 boost_indian=boost_indian,
             )
             results = deduplicate_recommendations(results)
+            results = prioritize_preference_matches(
+                results,
+                preferred_language=preferred_language,
+                preferred_region=preferred_region,
+            )
             if not require_preview:
-                results = promote_preview_recommendations(results, target_size=top_k)
+                preferred_language_norm = str(preferred_language or "any").strip().lower()
+                preferred_region_norm = str(preferred_region or "any").strip().lower()
+                has_language_pref = preferred_language_norm != "any"
+                has_region_pref = preferred_region_norm != "any"
+                if has_language_pref or has_region_pref:
+                    exact_match = pd.Series(True, index=results.index)
+                    if has_language_pref and "language" in results.columns:
+                        exact_match &= results["language"].fillna("").astype(str).str.lower().eq(
+                            preferred_language_norm
+                        )
+                    if has_region_pref and "region" in results.columns:
+                        exact_match &= results["region"].fillna("").astype(str).str.lower().eq(
+                            preferred_region_norm
+                        )
+
+                    if bool(exact_match.any()):
+                        matched = promote_preview_recommendations(
+                            results[exact_match],
+                            target_size=top_k,
+                            importance_margin=PREFERRED_PREVIEW_IMPORTANCE_MARGIN,
+                        )
+                        results = pd.concat([matched, results[~exact_match]], ignore_index=True)
+                    else:
+                        results = promote_preview_recommendations(results, target_size=top_k)
+                else:
+                    results = promote_preview_recommendations(results, target_size=top_k)
+            results = prioritize_preference_matches(
+                results,
+                preferred_language=preferred_language,
+                preferred_region=preferred_region,
+            )
 
             # Return top_k after re-ranking
             return results.head(top_k).reset_index(drop=True)

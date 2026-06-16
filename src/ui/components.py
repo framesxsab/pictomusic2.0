@@ -44,7 +44,7 @@ def render_stat_card(label: str, value: str, unit: str, color: str = "var(--prim
 
     st.markdown(
         f"""
-        <div class="stat-card" style="border-left-color: {color};">
+        <div class="stat-card" style="--stat-accent: {color};">
             <div class="stat-label">{escape_html(label)}</div>
             <div class="stat-value">{value}<span class="stat-unit" style="color:{color};">{escape_html(unit)}</span></div>
         </div>
@@ -108,7 +108,7 @@ def build_song_card_html(
     if safe_img_url:
         art_html = f'<div class="song-art-container"><img class="song-art" src="{safe_img_url}" alt="{safe_name} cover"></div>'
     else:
-        art_html = '<div class="song-art-container"><span class="song-art-placeholder">🎵</span></div>'
+        art_html = '<div class="song-art-container"><span class="song-art-placeholder" aria-hidden="true">&#9835;</span></div>'
 
     tags_html = ""
     if genre or language or region or release_year:

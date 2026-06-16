@@ -20,6 +20,9 @@ DEFAULT_TOP_K = int(os.getenv("PICTOMUSIC_TOP_K", "10"))
 RETRIEVAL_CANDIDATE_MULTIPLIER = int(
     os.getenv("PICTOMUSIC_RETRIEVAL_CANDIDATE_MULT", "30")
 )
+PREFERRED_FILTER_MIN_CANDIDATES = int(
+    os.getenv("PICTOMUSIC_PREFERRED_FILTER_MIN_CANDIDATES", "50000")
+)
 
 ALLOWED_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 MAX_UPLOAD_SIZE_MB = int(os.getenv("PICTOMUSIC_MAX_UPLOAD_MB", "10"))
@@ -91,8 +94,8 @@ MAX_IMAGE_PIXELS = int(os.getenv("PICTOMUSIC_MAX_IMAGE_PIXELS", "25000000"))
 
 APP_TITLE = "Pictomusic"
 APP_ICON = "\U0001f3b5"
-APP_SUBTITLE = "Image-to-song discovery tuned for global moods, languages, and charts"
-APP_VERSION_TAG = "v2026 World Retrieval"
+APP_SUBTITLE = "Image-to-song discovery tuned for Indian moods, languages, and regional scenes"
+APP_VERSION_TAG = "v2026 India Retrieval"
 HERO_TITLE = "FIND THE SOUNDTRACK<br>INSIDE YOUR IMAGE"
 
 # --- India-first retrieval ---
@@ -125,7 +128,7 @@ INDIAN_ARTIST_HINTS = {
 }
 INDIAN_TITLE_HINTS = {
     "dil", "ishq", "pyaar", "yaar", "sajna", "maahi", "tere", "meri",
-    "tum", "tu", "aankh", "zindagi", "jhoome", "nach", "balle", "vaathi",
+    "tum", "aankh", "zindagi", "jhoome", "nach", "balle", "vaathi",
     "raataan", "kesariya", "naina", "channa", "kalank", "deva",
     "bhojpuri", "garba", "chhath", "holi", "bhangra", "gidda",
 }
@@ -139,6 +142,9 @@ PREVIEW_WEIGHT = float(os.getenv("PICTOMUSIC_PREVIEW_WEIGHT", "0.08"))
 ARTWORK_WEIGHT = float(os.getenv("PICTOMUSIC_ARTWORK_WEIGHT", "0.015"))
 PREVIEW_TARGET_SHARE = float(os.getenv("PICTOMUSIC_PREVIEW_TARGET_SHARE", "0.6"))
 PREVIEW_IMPORTANCE_MARGIN = float(os.getenv("PICTOMUSIC_PREVIEW_IMPORTANCE_MARGIN", "0.12"))
+PREFERRED_PREVIEW_IMPORTANCE_MARGIN = float(
+    os.getenv("PICTOMUSIC_PREFERRED_PREVIEW_IMPORTANCE_MARGIN", "0.25")
+)
 
 # --- Mood inference thresholds (preprocess.py) ---
 MOOD_THRESHOLDS = {
@@ -162,6 +168,7 @@ MOOD_THRESHOLDS = {
 }
 
 # --- Recommender constants ---
+RAG_ALPHA = float(os.getenv("PICTOMUSIC_RAG_ALPHA", "0.4"))
 MOOD_SIMILARITY_THRESHOLD = float(os.getenv("PICTOMUSIC_MOOD_SIM_THRESHOLD", "0.15"))
 MOOD_TOP_N = int(os.getenv("PICTOMUSIC_MOOD_TOP_N", "2"))
 MOOD_FETCH_MULTIPLIER = int(os.getenv("PICTOMUSIC_MOOD_FETCH_MULT", "3"))

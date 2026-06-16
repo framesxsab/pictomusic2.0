@@ -11,6 +11,7 @@ from ranking import (
     apply_hybrid_ranking,
     deduplicate_recommendations,
     promote_preview_recommendations,
+    prioritize_preference_matches,
     song_identity_key,
     parse_release_year,
 )
@@ -134,6 +135,26 @@ def test_preview_promotion_favors_previews_but_keeps_important_match():
 
     assert visible.iloc[0]["id"] == "important_non_preview"
     assert visible["preview"].astype(str).str.startswith("http").sum() == 2
+
+
+def test_preference_matches_stay_ahead_of_generic_visual_matches():
+    results = pd.DataFrame(
+        {
+            "name": ["Strong global visual", "Hindi match", "Another Bollywood match"],
+            "artist": ["A", "B", "C"],
+            "hybrid_score": [0.99, 0.72, 0.70],
+            "language": ["en", "hi", "hi"],
+            "region": ["western", "bollywood", "bollywood"],
+        }
+    )
+
+    prioritized = prioritize_preference_matches(
+        results,
+        preferred_language="hi",
+        preferred_region="bollywood",
+    )
+
+    assert list(prioritized["name"][:2]) == ["Hindi match", "Another Bollywood match"]
 
 
 def test_hybrid_ranking_boosts_india_affinity_conditionally():

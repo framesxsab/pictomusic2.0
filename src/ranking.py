@@ -254,6 +254,35 @@ def deduplicate_recommendations(results: pd.DataFrame) -> pd.DataFrame:
     ).reset_index(drop=True)
 
 
+def prioritize_preference_matches(
+    results: pd.DataFrame,
+    preferred_language: str = "any",
+    preferred_region: str = "any",
+) -> pd.DataFrame:
+    """Keep explicit language/region selections ahead of generic visual matches."""
+    if results.empty:
+        return results
+
+    preferred_language = _norm(preferred_language)
+    preferred_region = _norm(preferred_region)
+    has_language_pref = preferred_language and preferred_language != "any"
+    has_region_pref = preferred_region and preferred_region != "any"
+    if not has_language_pref and not has_region_pref:
+        return results
+
+    ranked = results.copy()
+    match = pd.Series(True, index=ranked.index)
+    if has_language_pref and "language" in ranked.columns:
+        match &= ranked["language"].map(_norm).eq(preferred_language)
+    if has_region_pref and "region" in ranked.columns:
+        match &= ranked["region"].map(_norm).eq(preferred_region)
+
+    if not bool(match.any()):
+        return results
+
+    return pd.concat([ranked[match], ranked[~match]], ignore_index=True)
+
+
 def promote_preview_recommendations(
     results: pd.DataFrame,
     target_size: int,

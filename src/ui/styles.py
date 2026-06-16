@@ -15,23 +15,27 @@ def get_global_css() -> str:
     --accent-green: #54d39b;
     --accent-rose: #ee6f8f;
     --accent-blue: #6db7ff;
-    --bg-dark: #0d1110;
-    --bg-card: rgba(255, 255, 255, 0.055);
-    --panel-soft: rgba(244, 182, 66, 0.08);
-    --border-glow: rgba(244, 182, 66, 0.24);
+    --bg-dark: #0a0f0d;
+    --bg-card: rgba(255, 249, 235, 0.045);
+    --panel-soft: rgba(244, 182, 66, 0.055);
+    --border-glow: rgba(244, 182, 66, 0.18);
+    --surface-top: rgba(255, 249, 235, 0.072);
+    --surface-mid: rgba(255, 249, 235, 0.032);
+    --surface-low: rgba(7, 12, 10, 0.78);
+    --surface-border: rgba(255, 249, 235, 0.14);
     --text-primary: #fff9eb;
     --text-secondary: #c5bdab;
-    --text-muted: #817a6b;
-    --glass-bg: rgba(255, 255, 255, 0.04);
-    --glass-border: rgba(255, 249, 235, 0.11);
+    --text-muted: #aaa08c;
+    --glass-bg: linear-gradient(180deg, var(--surface-top) 0%, var(--surface-mid) 44%, var(--surface-low) 100%);
+    --glass-border: var(--surface-border);
 }
 
 html, body, [data-testid="stAppViewContainer"], .stApp,
 [data-testid="stHeader"], [data-testid="stToolbar"] {
     background:
-        linear-gradient(135deg, rgba(84, 211, 155, 0.09) 0%, transparent 28%),
-        linear-gradient(225deg, rgba(238, 111, 143, 0.08) 0%, transparent 30%),
-        radial-gradient(circle at 50% -10%, rgba(244, 182, 66, 0.14), transparent 34%),
+        linear-gradient(180deg, rgba(244, 182, 66, 0.16) 0%, rgba(244, 182, 66, 0.055) 11rem, rgba(10, 15, 13, 0) 29rem),
+        linear-gradient(115deg, rgba(84, 211, 155, 0.07) 0%, rgba(84, 211, 155, 0.025) 24%, transparent 44%),
+        linear-gradient(245deg, rgba(238, 111, 143, 0.055) 0%, rgba(238, 111, 143, 0.02) 26%, transparent 46%),
         var(--bg-dark) !important;
     color: var(--text-primary) !important;
     font-family: 'Anek Devanagari', sans-serif !important;
@@ -51,6 +55,13 @@ section[data-testid="stSidebar"] {
 section[data-testid="stSidebar"] .stMarkdown p,
 section[data-testid="stSidebar"] .stMarkdown span,
 section[data-testid="stSidebar"] .stMarkdown li {
+    color: var(--text-secondary) !important;
+}
+
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] small {
     color: var(--text-secondary) !important;
 }
 
@@ -149,9 +160,11 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 
 /* Song card */
 .song-card {
-    background: linear-gradient(135deg, rgba(255, 249, 235, 0.07), rgba(255, 255, 255, 0.025));
+    background:
+        linear-gradient(180deg, rgba(255, 249, 235, 0.058) 0%, rgba(255, 249, 235, 0.028) 48%, rgba(7, 12, 10, 0.76) 100%),
+        linear-gradient(90deg, rgba(244, 182, 66, 0.034), rgba(84, 211, 155, 0.026) 42%, rgba(238, 111, 143, 0.022));
     backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--surface-border);
     border-radius: 0.75rem;
     padding: 1.25rem;
     margin-bottom: 0.75rem;
@@ -161,6 +174,9 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     display: flex;
     gap: 1.25rem;
     align-items: center;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 249, 235, 0.07),
+        0 18px 44px rgba(0, 0, 0, 0.18);
 }
 
 .song-art-container {
@@ -201,19 +217,21 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     content: '';
     position: absolute;
     top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(180deg, var(--accent-warm), var(--accent-green), var(--accent-rose));
-    border-radius: 4px 0 0 4px;
-    opacity: 0;
+    left: 1.25rem;
+    right: 1.25rem;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(244, 182, 66, 0.78), rgba(84, 211, 155, 0.5), rgba(238, 111, 143, 0.38));
+    border-radius: 9999px;
+    opacity: 0.54;
     transition: opacity 0.3s ease;
 }
 
 .song-card:hover {
-    border-color: var(--border-glow);
+    border-color: rgba(255, 249, 235, 0.2);
     transform: translateX(4px);
-    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.26);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 249, 235, 0.1),
+        0 18px 48px rgba(0, 0, 0, 0.28);
 }
 
 .song-card:hover::before {
@@ -252,8 +270,8 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 .song-tag {
     display: inline-flex;
     padding: 0.15rem 0.5rem;
-    background: rgba(244, 182, 66, 0.1);
-    border: 1px solid rgba(244, 182, 66, 0.22);
+    background: rgba(255, 249, 235, 0.055);
+    border: 1px solid rgba(255, 249, 235, 0.12);
     border-radius: 9999px;
     font-size: 0.6rem;
     font-weight: 600;
@@ -508,6 +526,18 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     font-weight: 600 !important;
 }
 
+section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+section[data-testid="stSidebar"] [data-testid="stTickBarMin"],
+section[data-testid="stSidebar"] [data-testid="stTickBarMax"] {
+    color: var(--text-secondary) !important;
+    opacity: 1 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stThumbValue"] {
+    color: var(--accent-warm) !important;
+}
+
 /* Spinner */
 .stSpinner > div {
     border-top-color: var(--primary) !important;
@@ -585,13 +615,31 @@ hr {
 
 /* Stats row */
 .stat-card {
-    background: var(--glass-bg);
+    background:
+        linear-gradient(180deg, rgba(255, 249, 235, 0.06) 0%, rgba(255, 249, 235, 0.03) 46%, rgba(8, 12, 10, 0.78) 100%),
+        linear-gradient(90deg, rgba(244, 182, 66, 0.024), rgba(84, 211, 155, 0.02), rgba(238, 111, 143, 0.018));
     backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-left: 4px solid var(--primary);
-    border-radius: 1rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 0.75rem;
     padding: 1.25rem 1.5rem;
     text-align: left;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 249, 235, 0.07),
+        0 16px 36px rgba(0, 0, 0, 0.16);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 1rem;
+    right: 1rem;
+    height: 2px;
+    background: linear-gradient(90deg, var(--stat-accent, var(--primary)), rgba(255, 249, 235, 0.1));
+    border-radius: 9999px;
+    opacity: 0.82;
 }
 
 .stat-label {

@@ -8,6 +8,8 @@ venv/
 # Generated files
 *.npy
 !song_embeddings_fp16.npy
+*.log
+output/
 
 # Old/large data files
 src/spotify_millsongdata.csv
@@ -23,4 +25,4 @@ __pycache__/
 # Local raw datasets
 data.csv
 spotify_data.csv
-spotify_tracks.csv
+spotify_tracks.csv

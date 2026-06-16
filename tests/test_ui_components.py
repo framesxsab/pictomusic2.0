@@ -59,4 +59,6 @@ def test_song_card_renders_placeholder_when_no_image_provided():
         img_url="",
     )
     assert 'song-art-placeholder' in html
+    assert "&#9835;" in html
+    assert "ð" not in html
 

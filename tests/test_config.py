@@ -11,6 +11,8 @@ from config import (
     IMAGE_MOOD_KEYWORDS,
     ALLOWED_IMAGE_EXTENSIONS,
     MAX_UPLOAD_SIZE_BYTES,
+    PREFERRED_FILTER_MIN_CANDIDATES,
+    PREFERRED_PREVIEW_IMPORTANCE_MARGIN,
 )
 
 
@@ -53,3 +55,11 @@ def test_allowed_extensions():
 
 def test_upload_size_limit():
     assert MAX_UPLOAD_SIZE_BYTES == 10 * 1024 * 1024
+
+
+def test_preferred_filter_candidate_floor_supports_preview_availability():
+    assert PREFERRED_FILTER_MIN_CANDIDATES >= 50000
+
+
+def test_preferred_preview_margin_is_stronger_than_generic_margin():
+    assert PREFERRED_PREVIEW_IMPORTANCE_MARGIN >= 0.25

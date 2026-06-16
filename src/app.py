@@ -208,6 +208,7 @@ with col_main:
                         st.session_state["recommendations"] = recommendations
                         st.session_state["show_results"] = True
                         st.session_state["catalog_stats"] = recommender.catalog_stats()
+                        st.session_state["detected_themes"] = getattr(recommender, "last_detected_themes", [])
                     else:
                         st.info(
                             "No matching tracks found with these filters. "
