@@ -67,19 +67,48 @@ FEATURE_DESCRIPTORS = [
 ]
 
 # Image mood categories for zero-shot CLIP classification + re-ranking
+# Each key is a CLIP prompt category; values are music mood keywords to match song mood_tags.
+# More categories = finer-grained visual understanding → better recommendations.
 IMAGE_MOOD_KEYWORDS = {
-    "nature and greenery":    ["peaceful", "acoustic", "calm", "organic"],
-    "sunset and golden hour": ["romantic", "melancholic", "warm", "soothing"],
-    "party and celebration":  ["energetic", "danceable", "happy", "groovy"],
-    "rain and storm":         ["melancholic", "sad", "calm", "dark"],
-    "city and urban":         ["urban", "energetic", "modern", "electronic"],
-    "ocean and beach":        ["peaceful", "calm", "happy", "soothing"],
-    "night and darkness":     ["dark", "melancholic", "electronic", "intense"],
-    "festival and lights":    ["energetic", "happy", "danceable", "intense"],
-    "mountain and landscape": ["peaceful", "acoustic", "organic", "calm"],
-    "portrait and emotion":   ["romantic", "vocal", "soothing", "warm"],
-    "temple and spiritual":   ["peaceful", "acoustic", "devotional", "calm"],
-    "dance and movement":     ["danceable", "energetic", "groovy", "happy"],
+    # Nature & outdoors
+    "nature and greenery":       ["peaceful", "acoustic", "calm", "organic", "soothing"],
+    "sunset and golden hour":    ["romantic", "melancholic", "warm", "soothing"],
+    "ocean and beach":           ["peaceful", "calm", "happy", "soothing"],
+    "rain and storm":            ["melancholic", "sad", "calm", "dark"],
+    "mountain and landscape":    ["peaceful", "acoustic", "organic", "calm"],
+    "flowers and garden":        ["romantic", "peaceful", "acoustic", "soothing"],
+    # Night & urban
+    "city and urban skyline":    ["energetic", "modern", "electronic", "intense"],
+    "night and darkness":        ["dark", "melancholic", "electronic", "intense"],
+    "street at night with lights": ["energetic", "modern", "electronic", "groovy"],
+    # People & emotions
+    "portrait and emotion":      ["romantic", "vocal", "soothing", "warm", "melancholic"],
+    "couple in love":            ["romantic", "soothing", "warm", "vocal"],
+    "friends laughing and happy": ["happy", "energetic", "party", "groovy"],
+    "person sad and alone":      ["sad", "melancholic", "calm", "acoustic"],
+    # Celebration & energy
+    "party and celebration":     ["energetic", "danceable", "happy", "groovy", "party"],
+    "festival and lights":       ["energetic", "happy", "danceable", "intense", "party"],
+    "dance and movement":        ["danceable", "energetic", "groovy", "happy"],
+    "concert and live music":    ["energetic", "intense", "happy", "groovy"],
+    # Culture & spiritual
+    "temple and spiritual":      ["peaceful", "acoustic", "devotional", "calm"],
+    "wedding and ceremony":      ["happy", "romantic", "danceable", "energetic"],
+    # Food & lifestyle
+    "food and cooking":          ["happy", "calm", "acoustic", "soothing"],
+}
+
+# Scene → genre mapping: when a visual scene is detected, prefer songs of these genres.
+# This bridges the semantic gap between visual content and music genre directly.
+SCENE_GENRE_MAP = {
+    "temple and spiritual":        ["devotional", "classical", "sufi", "ghazal"],
+    "wedding and ceremony":        ["bollywood", "punjabi", "filmi"],
+    "party and celebration":       ["bollywood", "punjabi", "edm"],
+    "festival and lights":         ["bollywood", "punjabi", "folk"],
+    "dance and movement":          ["bollywood", "tamil", "telugu", "punjabi"],
+    "concert and live music":      ["indie_indian", "bollywood"],
+    "couple in love":              ["bollywood", "ghazal", "hindi"],
+    "rain and storm":              ["bollywood", "ghazal"],
 }
 
 # Mood re-ranking boost factor (0.0 = no boost, 0.15 = moderate boost)
@@ -168,10 +197,17 @@ MOOD_THRESHOLDS = {
 }
 
 # --- Recommender constants ---
-RAG_ALPHA = float(os.getenv("PICTOMUSIC_RAG_ALPHA", "0.4"))
+# RAG_ALPHA controls how much the raw image embedding matters vs. the auto-generated
+# text query.  0.7 = 70% image + 30% text (image-heavy, safer default).
+# When mood confidence is high we shift toward RAG_ALPHA_LOW (more text influence).
+RAG_ALPHA = float(os.getenv("PICTOMUSIC_RAG_ALPHA", "0.65"))
+RAG_ALPHA_HIGH_CONF = float(os.getenv("PICTOMUSIC_RAG_ALPHA_HIGH_CONF", "0.5"))
+RAG_ALPHA_LOW_CONF = float(os.getenv("PICTOMUSIC_RAG_ALPHA_LOW_CONF", "0.8"))
+MOOD_CONFIDENCE_THRESHOLD = float(os.getenv("PICTOMUSIC_MOOD_CONF_THRESHOLD", "0.22"))
 MOOD_SIMILARITY_THRESHOLD = float(os.getenv("PICTOMUSIC_MOOD_SIM_THRESHOLD", "0.15"))
-MOOD_TOP_N = int(os.getenv("PICTOMUSIC_MOOD_TOP_N", "2"))
+MOOD_TOP_N = int(os.getenv("PICTOMUSIC_MOOD_TOP_N", "3"))
 MOOD_FETCH_MULTIPLIER = int(os.getenv("PICTOMUSIC_MOOD_FETCH_MULT", "3"))
+SCENE_GENRE_BOOST = float(os.getenv("PICTOMUSIC_SCENE_GENRE_BOOST", "0.08"))
 HTTP_CHUNK_SIZE = 8192
 
 # --- External service URLs ---

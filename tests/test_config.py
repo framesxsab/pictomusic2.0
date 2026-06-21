@@ -11,8 +11,12 @@ from config import (
     IMAGE_MOOD_KEYWORDS,
     ALLOWED_IMAGE_EXTENSIONS,
     MAX_UPLOAD_SIZE_BYTES,
+    MOOD_TOP_N,
     PREFERRED_FILTER_MIN_CANDIDATES,
     PREFERRED_PREVIEW_IMPORTANCE_MARGIN,
+    RAG_ALPHA_HIGH_CONF,
+    RAG_ALPHA_LOW_CONF,
+    SCENE_GENRE_MAP,
 )
 
 
@@ -63,3 +67,23 @@ def test_preferred_filter_candidate_floor_supports_preview_availability():
 
 def test_preferred_preview_margin_is_stronger_than_generic_margin():
     assert PREFERRED_PREVIEW_IMPORTANCE_MARGIN >= 0.25
+
+
+def test_scene_genre_map_keys_are_mood_categories():
+    """Every scene→genre map key must be a valid IMAGE_MOOD_KEYWORDS category."""
+    for scene in SCENE_GENRE_MAP:
+        assert scene in IMAGE_MOOD_KEYWORDS, f"SCENE_GENRE_MAP key '{scene}' not in IMAGE_MOOD_KEYWORDS"
+
+
+def test_scene_genre_map_values_non_empty():
+    for scene, genres in SCENE_GENRE_MAP.items():
+        assert len(genres) > 0, f"SCENE_GENRE_MAP['{scene}'] has no genres"
+
+
+def test_rag_alpha_high_conf_is_lower_than_low_conf():
+    """High confidence should give more weight to text (lower alpha = less image)."""
+    assert RAG_ALPHA_HIGH_CONF < RAG_ALPHA_LOW_CONF
+
+
+def test_mood_top_n_is_at_least_two():
+    assert MOOD_TOP_N >= 2

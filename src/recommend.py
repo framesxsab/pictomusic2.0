@@ -11,19 +11,6 @@ from typing import Callable, List, Optional
 
 import faiss
 import numpy as np
-"""
-PictoMusic Recommendation Engine
-Image-to-music recommendation using CLIP embeddings, FAISS search, and mood re-ranking.
-"""
-
-import logging
-import os
-import tempfile
-from pathlib import Path
-from typing import Callable, List, Optional
-
-import faiss
-import numpy as np
 import pandas as pd
 import requests
 import torch
@@ -40,6 +27,7 @@ from config import (
     MAX_IMAGE_PIXELS,
     MAX_TOKEN_LENGTH,
     MAX_UPLOAD_SIZE_BYTES,
+    MOOD_CONFIDENCE_THRESHOLD,
     MOOD_FETCH_MULTIPLIER,
     MOOD_RERANK_BOOST,
     MOOD_SIMILARITY_THRESHOLD,
@@ -47,8 +35,12 @@ from config import (
     PREFERRED_FILTER_MIN_CANDIDATES,
     PREFERRED_PREVIEW_IMPORTANCE_MARGIN,
     RAG_ALPHA,
+    RAG_ALPHA_HIGH_CONF,
+    RAG_ALPHA_LOW_CONF,
     REQUEST_TIMEOUT,
     RETRIEVAL_CANDIDATE_MULTIPLIER,
+    SCENE_GENRE_BOOST,
+    SCENE_GENRE_MAP,
 )
 from embeddings import (
     build_faiss_index,
@@ -92,6 +84,7 @@ class ImageMusicRecommender:
         self.mood_text_embeddings: Optional[np.ndarray] = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.last_detected_themes: List[str] = []
+        self.last_mood_confidence: float = 0.0
 
         self._load_models()
         self._load_dataset()
@@ -166,7 +159,8 @@ class ImageMusicRecommender:
 
     def _classify_image_mood(self, image_embedding: np.ndarray) -> List[str]:
         """Zero-shot classify image mood using CLIP text-image similarity.
-        Returns top-2 mood keywords that match the image.
+        Returns top mood keywords and caches confidence score for adaptive RAG blending.
+        Higher confidence = the image is a clear match for specific scenes.
         """
         if self.mood_text_embeddings is None:
             return []
@@ -179,8 +173,21 @@ class ImageMusicRecommender:
 
             mood_keys = list(IMAGE_MOOD_KEYWORDS.keys())
             top_indices = similarities.argsort()[-MOOD_TOP_N:][::-1]
-            top_moods = [mood_keys[i] for i in top_indices if similarities[i] > MOOD_SIMILARITY_THRESHOLD]
-            self.last_detected_themes = top_moods  # ponytail: cache detected themes for the UI
+            top_moods = [
+                mood_keys[i] for i in top_indices
+                if similarities[i] > MOOD_SIMILARITY_THRESHOLD
+            ]
+
+            # Compute mood confidence: average similarity of accepted moods.
+            # This drives adaptive RAG blending — high confidence = lean more on text query.
+            if top_moods:
+                accepted_sims = [float(similarities[i]) for i in top_indices
+                                 if similarities[i] > MOOD_SIMILARITY_THRESHOLD]
+                self.last_mood_confidence = float(np.mean(accepted_sims))
+            else:
+                self.last_mood_confidence = 0.0
+
+            self.last_detected_themes = top_moods
 
             mood_keywords = []
             for mood in top_moods:
@@ -189,6 +196,7 @@ class ImageMusicRecommender:
             return list(set(mood_keywords))
         except Exception as e:
             logger.warning("Mood classification failed: %s", e)
+            self.last_mood_confidence = 0.0
             return []
 
     def _rerank_with_mood(
@@ -212,6 +220,31 @@ class ImageMusicRecommender:
         results.sort_values("similarity_score", ascending=False, inplace=True)
         results.reset_index(drop=True, inplace=True)
 
+        return results
+
+    def _rerank_with_scene_genre(
+        self, results: pd.DataFrame, detected_themes: List[str]
+    ) -> pd.DataFrame:
+        """Boost songs whose genre matches the detected visual scene.
+        E.g., a temple image boosts devotional/classical songs.
+        """
+        if not detected_themes or "genre" not in results.columns or "similarity_score" not in results.columns:
+            return results
+
+        # Collect all preferred genres from detected scenes
+        preferred_genres = set()
+        for theme in detected_themes:
+            for genre in SCENE_GENRE_MAP.get(theme, []):
+                preferred_genres.add(genre.lower())
+
+        if not preferred_genres:
+            return results
+
+        results = results.copy()
+        genre_match = results["genre"].fillna("").astype(str).str.lower().isin(preferred_genres).astype(float)
+        results["similarity_score"] = results["similarity_score"] + genre_match * SCENE_GENRE_BOOST
+        results.sort_values("similarity_score", ascending=False, inplace=True)
+        results.reset_index(drop=True, inplace=True)
         return results
 
     @property
@@ -351,23 +384,34 @@ class ImageMusicRecommender:
             return pd.DataFrame()
 
         self.last_detected_themes = []  # Reset on each call
+        self.last_mood_confidence = 0.0
 
         try:
-            # 1. Zero-shot classify image categories and keywords
+            # 1. Zero-shot classify image into scene categories and mood keywords
             mood_keywords = self._classify_image_mood(img_emb)
 
-            # 2. RAG-based search query construction and embedding generation
-            # Construct a descriptive text query representing the visual scene
+            # 2. Build a rich text query that mirrors song description format.
+            # Instead of "a photo of sunset and golden hour, romantic, melancholic"
+            # we build "romantic, melancholic and dark, soothing. sunset, warm" —
+            # closer to how songs are described, bridging the modality gap.
             query_parts = []
-            if self.last_detected_themes:
-                query_parts.append(f"a photo of {', '.join(self.last_detected_themes)}")
             if mood_keywords:
-                query_parts.append(f"{', '.join(mood_keywords)}")
-            
-            query_text = ", ".join(query_parts) if query_parts else "music recommendation"
-            
-            # Generate CLIP text embedding for the visual query description
-            # ponytail: use standard local generator to avoid new dependencies
+                query_parts.append(", ".join(mood_keywords))
+            if self.last_detected_themes:
+                # Add scene descriptors as secondary context
+                scene_words = []
+                for theme in self.last_detected_themes:
+                    # Extract the key noun from "nature and greenery" → "nature", "greenery"
+                    for word in theme.replace(" and ", ", ").split(", "):
+                        word = word.strip()
+                        if word and word not in ("a", "the", "of", "in", "at", "with"):
+                            scene_words.append(word)
+                if scene_words:
+                    query_parts.append(", ".join(scene_words[:4]))
+
+            query_text = ". ".join(query_parts) if query_parts else "music"
+
+            # Generate CLIP text embedding for the constructed query
             query_text_emb = generate_text_embeddings(
                 [query_text],
                 self.clip_model,
@@ -376,10 +420,18 @@ class ImageMusicRecommender:
                 batch_size=1,
             )
 
-            # 3. Blend raw image embedding with visual query text embedding
-            if query_text_emb is not None and RAG_ALPHA < 1.0:
-                blended_emb = RAG_ALPHA * img_emb + (1.0 - RAG_ALPHA) * query_text_emb
+            # 3. Confidence-adaptive RAG blending.
+            # High mood confidence → trust text query more (lower alpha).
+            # Low confidence → lean on raw image embedding (higher alpha).
+            if query_text_emb is not None and self.last_mood_confidence > 0:
+                if self.last_mood_confidence >= MOOD_CONFIDENCE_THRESHOLD:
+                    alpha = RAG_ALPHA_HIGH_CONF
+                else:
+                    alpha = RAG_ALPHA_LOW_CONF
+                blended_emb = alpha * img_emb + (1.0 - alpha) * query_text_emb
                 blended_emb = blended_emb / np.linalg.norm(blended_emb, axis=-1, keepdims=True)
+                logger.info("RAG blend: alpha=%.2f, mood_conf=%.3f, query=%r",
+                            alpha, self.last_mood_confidence, query_text[:80])
             else:
                 blended_emb = img_emb
 
@@ -399,6 +451,10 @@ class ImageMusicRecommender:
             if mood_keywords:
                 results = self._rerank_with_mood(results, mood_keywords)
                 logger.info("Re-ranked with mood: %s", mood_keywords[:5])
+
+            # Scene→genre re-ranking
+            if self.last_detected_themes:
+                results = self._rerank_with_scene_genre(results, self.last_detected_themes)
 
             results = apply_hybrid_ranking(
                 results,

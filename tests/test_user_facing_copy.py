@@ -2,13 +2,14 @@
 
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 USER_FACING_FILES = [
-    Path("src/app.py"),
-    Path("src/config.py"),
-    Path("src/ui/components.py"),
-    Path("src/ui/results.py"),
-    Path("src/ui/sidebar.py"),
+    PROJECT_ROOT / "src" / "app.py",
+    PROJECT_ROOT / "src" / "config.py",
+    PROJECT_ROOT / "src" / "ui" / "components.py",
+    PROJECT_ROOT / "src" / "ui" / "results.py",
+    PROJECT_ROOT / "src" / "ui" / "sidebar.py",
 ]
 
 
@@ -26,7 +27,7 @@ def test_user_facing_copy_does_not_claim_neural_only_workflow():
 
 
 def test_streamlit_app_does_not_inject_ignored_csp_meta_tag():
-    text = Path("src/app.py").read_text(encoding="utf-8")
+    text = (PROJECT_ROOT / "src" / "app.py").read_text(encoding="utf-8")
 
     assert "inject_csp_headers" not in text
 
