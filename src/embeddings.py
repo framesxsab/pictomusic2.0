@@ -5,6 +5,8 @@ Run standalone: python -m src.embeddings --dataset Music.csv --output embeddings
 """
 
 import argparse
+import hashlib
+import json
 import logging
 import os
 from pathlib import Path
@@ -19,11 +21,92 @@ from config import (
     CLIP_MODEL_NAME,
     DATASET_PATH,
     EMBEDDING_BATCH_SIZE,
+    EMBEDDINGS_MANIFEST_PATH,
     EMBEDDINGS_PATH,
     MAX_TOKEN_LENGTH,
+    STRICT_EMBEDDING_MANIFEST,
 )
 
 logger = logging.getLogger(__name__)
+MANIFEST_VERSION = 1
+
+
+def fingerprint_texts(texts: List[str]) -> str:
+    """Return a stable fingerprint for the exact text corpus used for embeddings."""
+    digest = hashlib.sha256()
+    for text in texts:
+        digest.update(str(text).encode("utf-8", errors="replace"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def build_embeddings_manifest(
+    *,
+    dataset_size: int,
+    embedding_shape: tuple[int, ...],
+    embedding_dtype: str,
+    model_name: str,
+    text_fingerprint: str,
+) -> dict:
+    """Build metadata that ties an embedding file to its model and text corpus."""
+    return {
+        "version": MANIFEST_VERSION,
+        "dataset_size": int(dataset_size),
+        "embedding_shape": [int(value) for value in embedding_shape],
+        "embedding_dtype": str(embedding_dtype),
+        "model_name": str(model_name),
+        "text_fingerprint": str(text_fingerprint),
+    }
+
+
+def read_embeddings_manifest(path: str) -> Optional[dict]:
+    """Read an embedding manifest if it exists and is valid JSON."""
+    if not path or not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        return payload if isinstance(payload, dict) else None
+    except Exception as e:
+        logger.warning("Could not read embeddings manifest %s: %s", path, e)
+        return None
+
+
+def write_embeddings_manifest(path: str, manifest: dict) -> None:
+    """Persist an embedding manifest next to the generated cache."""
+    try:
+        manifest_path = Path(path)
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, sort_keys=True)
+            f.write("\n")
+        logger.info("Saved embeddings manifest to %s", path)
+    except Exception as e:
+        logger.warning("Could not save embeddings manifest %s: %s", path, e)
+
+
+def embedding_manifest_matches(
+    manifest: dict,
+    *,
+    dataset_size: int,
+    embedding_shape: tuple[int, ...],
+    model_name: str,
+    text_fingerprint: str,
+) -> tuple[bool, str]:
+    """Validate that cached embeddings match the current corpus and model."""
+    expected_shape = [int(value) for value in embedding_shape]
+    checks = {
+        "version": MANIFEST_VERSION,
+        "dataset_size": int(dataset_size),
+        "embedding_shape": expected_shape,
+        "model_name": str(model_name),
+        "text_fingerprint": str(text_fingerprint),
+    }
+    for key, expected in checks.items():
+        actual = manifest.get(key)
+        if actual != expected:
+            return False, f"{key} mismatch: manifest={actual!r}, current={expected!r}"
+    return True, "manifest matches"
 
 
 @torch.no_grad()
@@ -94,25 +177,55 @@ def load_or_generate_embeddings(
     model: Optional[CLIPModel],
     processor: Optional[CLIPProcessor],
     device: Optional[torch.device],
+    model_name: str = CLIP_MODEL_NAME,
+    manifest_path: Optional[str] = None,
+    strict_manifest: bool = STRICT_EMBEDDING_MANIFEST,
     progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> Optional[np.ndarray]:
     """Load cached embeddings or regenerate if shape doesn't match."""
+    manifest_path = manifest_path or EMBEDDINGS_MANIFEST_PATH
+    text_fingerprint = fingerprint_texts(texts) if texts is not None else None
+
     if os.path.exists(embeddings_path):
         try:
             embeddings = np.load(embeddings_path)
             if len(embeddings) == dataset_size:
-                logger.info("Loaded cached embeddings from %s (%d vectors)", embeddings_path, len(embeddings))
-                return embeddings
+                manifest = read_embeddings_manifest(manifest_path)
+                if manifest and text_fingerprint is not None:
+                    matches, reason = embedding_manifest_matches(
+                        manifest,
+                        dataset_size=dataset_size,
+                        embedding_shape=tuple(embeddings.shape),
+                        model_name=model_name,
+                        text_fingerprint=text_fingerprint,
+                    )
+                    if matches:
+                        logger.info(
+                            "Loaded cached embeddings from %s (%d vectors, manifest verified)",
+                            embeddings_path,
+                            len(embeddings),
+                        )
+                        return embeddings
+                    logger.warning("Embeddings manifest mismatch (%s) - regenerating.", reason)
+                elif strict_manifest:
+                    logger.warning("Embeddings manifest missing or unverifiable - regenerating.")
+                else:
+                    logger.info(
+                        "Loaded cached embeddings from %s (%d vectors, legacy manifest mode)",
+                        embeddings_path,
+                        len(embeddings),
+                    )
+                    return embeddings
             else:
                 logger.warning(
-                    "Embeddings size mismatch (cached: %d, dataset: %d) — regenerating.",
+                    "Embeddings size mismatch (cached: %d, dataset: %d) - regenerating.",
                     len(embeddings), dataset_size
                 )
         except Exception as e:
-            logger.error("Error loading embeddings from %s: %s — regenerating.", embeddings_path, e)
+            logger.error("Error loading embeddings from %s: %s - regenerating.", embeddings_path, e)
 
     if texts is None or model is None or processor is None or device is None:
-        logger.error("Cannot generate embeddings — missing model/texts.")
+        logger.error("Cannot generate embeddings - missing model/texts.")
         return None
 
     embeddings = generate_text_embeddings(
@@ -120,8 +233,18 @@ def load_or_generate_embeddings(
     )
     if embeddings is not None:
         try:
-            np.save(embeddings_path, embeddings.astype(np.float16))
+            saved_embeddings = embeddings.astype(np.float16)
+            np.save(embeddings_path, saved_embeddings)
             logger.info("Saved embeddings to %s", embeddings_path)
+            if text_fingerprint is not None:
+                manifest = build_embeddings_manifest(
+                    dataset_size=dataset_size,
+                    embedding_shape=tuple(saved_embeddings.shape),
+                    embedding_dtype=str(saved_embeddings.dtype),
+                    model_name=model_name,
+                    text_fingerprint=text_fingerprint,
+                )
+                write_embeddings_manifest(manifest_path, manifest)
         except Exception as e:
             logger.error("Error saving embeddings: %s", e)
 
@@ -160,11 +283,20 @@ if __name__ == "__main__":
     logger.info("Loading and preprocessing dataset: %s", args.dataset)
     df = run_preprocessing(existing_csv=args.dataset)
     if df.empty:
-        logger.error("Preprocessing returned empty dataset — aborting.")
+        logger.error("Preprocessing returned empty dataset - aborting.")
         raise SystemExit(1)
     texts = df.apply(build_enhanced_description, axis=1).tolist()
     logger.info("Sample descriptions:\n  %s", "\n  ".join(texts[:5]))
 
     embeddings = generate_text_embeddings(texts, clip_model, clip_processor, device)
-    np.save(args.output, embeddings.astype(np.float16))
+    saved_embeddings = embeddings.astype(np.float16)
+    np.save(args.output, saved_embeddings)
+    manifest = build_embeddings_manifest(
+        dataset_size=len(texts),
+        embedding_shape=tuple(saved_embeddings.shape),
+        embedding_dtype=str(saved_embeddings.dtype),
+        model_name=args.model,
+        text_fingerprint=fingerprint_texts(texts),
+    )
+    write_embeddings_manifest(f"{args.output}.manifest.json", manifest)
     logger.info("Done. Saved %d embeddings to %s", len(embeddings), args.output)

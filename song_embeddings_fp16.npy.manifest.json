@@ -1,0 +1,11 @@
+{
+  "dataset_size": 91493,
+  "embedding_dtype": "float16",
+  "embedding_shape": [
+    91493,
+    512
+  ],
+  "model_name": "openai/clip-vit-base-patch32",
+  "text_fingerprint": "98c0065a42a87773804bc82b72123ae2d1fce3be72a07dae974f5676f21abacd",
+  "version": 1
+}

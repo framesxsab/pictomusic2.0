@@ -99,6 +99,12 @@ The evaluation suite verifies:
 * Preview-first result balancing while preserving strong matches.
 * Suppressed duplicates so the recommendations are diverse.
 
+### Fine-Tuning & Embedding Safety
+
+See [`docs/recommender_finetuning_plan.md`](docs/recommender_finetuning_plan.md) for the staged plan to improve recommendations without breaking the current 91K-song retrieval system.
+
+The current safe enhancement is embedding cache provenance: generated embeddings can be paired with `song_embeddings_fp16.npy.manifest.json`, which records the active CLIP model, embedding shape, dataset size, and song-description fingerprint. Set `PICTOMUSIC_STRICT_EMBEDDING_MANIFEST=1` after the manifest is present to prevent stale embeddings from being reused after a model, dataset, or description-schema change.
+
 ---
 
 ## 🐳 Docker Deployment (Hugging Face Spaces)

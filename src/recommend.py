@@ -21,6 +21,7 @@ from config import (
     CLIP_MODEL_NAME,
     DEFAULT_TOP_K,
     DATASET_PATH,
+    EMBEDDINGS_MANIFEST_PATH,
     EMBEDDINGS_PATH,
     HTTP_CHUNK_SIZE,
     IMAGE_MOOD_KEYWORDS,
@@ -41,6 +42,7 @@ from config import (
     RETRIEVAL_CANDIDATE_MULTIPLIER,
     SCENE_GENRE_BOOST,
     SCENE_GENRE_MAP,
+    STRICT_EMBEDDING_MANIFEST,
 )
 from embeddings import (
     build_faiss_index,
@@ -75,6 +77,11 @@ class ImageMusicRecommender:
         self.clip_model_name = clip_model_name
         self.embeddings_path = embeddings_path or EMBEDDINGS_PATH
         self.dataset_path = dataset_path or DATASET_PATH
+        self.embeddings_manifest_path = (
+            EMBEDDINGS_MANIFEST_PATH
+            if self.embeddings_path == EMBEDDINGS_PATH
+            else f"{self.embeddings_path}.manifest.json"
+        )
 
         self.clip_model: Optional[CLIPModel] = None
         self.processor: Optional[CLIPProcessor] = None
@@ -131,6 +138,9 @@ class ImageMusicRecommender:
             model=self.clip_model,
             processor=self.processor,
             device=self.device,
+            model_name=self.clip_model_name,
+            manifest_path=self.embeddings_manifest_path,
+            strict_manifest=STRICT_EMBEDDING_MANIFEST,
             progress_callback=progress_callback,
         )
 

@@ -11,6 +11,12 @@ DATASET_PATH = os.getenv("PICTOMUSIC_DATASET_PATH", str(BASE_DIR / "Music.csv"))
 EMBEDDINGS_PATH = os.getenv(
     "PICTOMUSIC_EMBEDDINGS_PATH", str(BASE_DIR / "song_embeddings_fp16.npy")
 )
+EMBEDDINGS_MANIFEST_PATH = os.getenv(
+    "PICTOMUSIC_EMBEDDINGS_MANIFEST_PATH", f"{EMBEDDINGS_PATH}.manifest.json"
+)
+STRICT_EMBEDDING_MANIFEST = os.getenv(
+    "PICTOMUSIC_STRICT_EMBEDDING_MANIFEST", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 
 CLIP_MODEL_NAME = os.getenv("PICTOMUSIC_CLIP_MODEL", "openai/clip-vit-base-patch32")
 EMBEDDING_BATCH_SIZE = int(os.getenv("PICTOMUSIC_BATCH_SIZE", "32"))
