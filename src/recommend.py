@@ -54,6 +54,7 @@ from preprocess import build_enhanced_description, run_preprocessing
 from ranking import (
     apply_hybrid_ranking,
     deduplicate_recommendations,
+    diversify_recommendations,
     prioritize_preference_matches,
     promote_preview_recommendations,
 )
@@ -92,6 +93,8 @@ class ImageMusicRecommender:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.last_detected_themes: List[str] = []
         self.last_mood_confidence: float = 0.0
+        self.last_query_text: str = ""
+        self.last_candidate_count: int = 0
 
         self._load_models()
         self._load_dataset()
@@ -200,14 +203,44 @@ class ImageMusicRecommender:
             self.last_detected_themes = top_moods
 
             mood_keywords = []
+            seen_keywords = set()
             for mood in top_moods:
-                mood_keywords.extend(IMAGE_MOOD_KEYWORDS[mood])
+                for keyword in IMAGE_MOOD_KEYWORDS[mood]:
+                    normalized_keyword = keyword.lower()
+                    if normalized_keyword not in seen_keywords:
+                        mood_keywords.append(keyword)
+                        seen_keywords.add(normalized_keyword)
 
-            return list(set(mood_keywords))
+            return mood_keywords
         except Exception as e:
             logger.warning("Mood classification failed: %s", e)
             self.last_mood_confidence = 0.0
             return []
+
+    def _build_visual_music_query(self, mood_keywords: List[str]) -> str:
+        """Build a deterministic CLIP text query from detected visual context."""
+        query_parts = []
+
+        if self.last_detected_themes:
+            query_parts.append(
+                "visual scene: " + ", ".join(self.last_detected_themes[:MOOD_TOP_N])
+            )
+
+        if mood_keywords:
+            query_parts.append("music mood: " + ", ".join(mood_keywords[:8]))
+
+        preferred_genres = []
+        seen_genres = set()
+        for theme in self.last_detected_themes:
+            for genre in SCENE_GENRE_MAP.get(theme, []):
+                clean_genre = genre.replace("_", " ").strip()
+                if clean_genre and clean_genre not in seen_genres:
+                    preferred_genres.append(clean_genre)
+                    seen_genres.add(clean_genre)
+        if preferred_genres:
+            query_parts.append("preferred styles: " + ", ".join(preferred_genres[:6]))
+
+        return ". ".join(query_parts) if query_parts else "music matching the image"
 
     def _rerank_with_mood(
         self, results: pd.DataFrame, mood_keywords: List[str]
@@ -395,31 +428,16 @@ class ImageMusicRecommender:
 
         self.last_detected_themes = []  # Reset on each call
         self.last_mood_confidence = 0.0
+        self.last_query_text = ""
+        self.last_candidate_count = 0
 
         try:
             # 1. Zero-shot classify image into scene categories and mood keywords
             mood_keywords = self._classify_image_mood(img_emb)
 
-            # 2. Build a rich text query that mirrors song description format.
-            # Instead of "a photo of sunset and golden hour, romantic, melancholic"
-            # we build "romantic, melancholic and dark, soothing. sunset, warm" —
-            # closer to how songs are described, bridging the modality gap.
-            query_parts = []
-            if mood_keywords:
-                query_parts.append(", ".join(mood_keywords))
-            if self.last_detected_themes:
-                # Add scene descriptors as secondary context
-                scene_words = []
-                for theme in self.last_detected_themes:
-                    # Extract the key noun from "nature and greenery" → "nature", "greenery"
-                    for word in theme.replace(" and ", ", ").split(", "):
-                        word = word.strip()
-                        if word and word not in ("a", "the", "of", "in", "at", "with"):
-                            scene_words.append(word)
-                if scene_words:
-                    query_parts.append(", ".join(scene_words[:4]))
-
-            query_text = ". ".join(query_parts) if query_parts else "music"
+            # 2. Build a deterministic text query that bridges visual scenes to music labels.
+            query_text = self._build_visual_music_query(mood_keywords)
+            self.last_query_text = query_text
 
             # Generate CLIP text embedding for the constructed query
             query_text_emb = generate_text_embeddings(
@@ -439,7 +457,8 @@ class ImageMusicRecommender:
                 else:
                     alpha = RAG_ALPHA_LOW_CONF
                 blended_emb = alpha * img_emb + (1.0 - alpha) * query_text_emb
-                blended_emb = blended_emb / np.linalg.norm(blended_emb, axis=-1, keepdims=True)
+                blended_norm = np.linalg.norm(blended_emb, axis=-1, keepdims=True)
+                blended_emb = blended_emb / np.where(blended_norm > 0, blended_norm, 1.0)
                 logger.info("RAG blend: alpha=%.2f, mood_conf=%.3f, query=%r",
                             alpha, self.last_mood_confidence, query_text[:80])
             else:
@@ -451,11 +470,13 @@ class ImageMusicRecommender:
             if preferred_language != "any" or preferred_region != "any":
                 min_candidates = max(min_candidates, PREFERRED_FILTER_MIN_CANDIDATES)
             fetch_k = min(min_candidates, self.index.ntotal)
+            self.last_candidate_count = int(fetch_k)
             distances, indices = self.index.search(blended_emb.astype("float32"), fetch_k)
             results = self.music_df.iloc[indices[0]].copy()
 
-            if show_scores:
-                results["similarity_score"] = distances[0]
+            raw_scores = distances[0].astype(float)
+            results["visual_score"] = raw_scores
+            results["similarity_score"] = raw_scores
 
             # Mood-aware re-ranking
             if mood_keywords:
@@ -512,8 +533,14 @@ class ImageMusicRecommender:
                 preferred_language=preferred_language,
                 preferred_region=preferred_region,
             )
+            results = diversify_recommendations(results, target_size=top_k)
 
             # Return top_k after re-ranking
+            if not show_scores:
+                results = results.drop(
+                    columns=["similarity_score", "visual_score", "hybrid_score"],
+                    errors="ignore",
+                )
             return results.head(top_k).reset_index(drop=True)
 
         except Exception as e:

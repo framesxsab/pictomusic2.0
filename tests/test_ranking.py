@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from ranking import (
     apply_hybrid_ranking,
     deduplicate_recommendations,
+    diversify_recommendations,
     promote_preview_recommendations,
     prioritize_preference_matches,
     song_identity_key,
@@ -189,3 +190,40 @@ def test_hybrid_ranking_boosts_india_affinity_conditionally():
     )
     # The Tamil song has lower similarity but high india affinity boost, so it goes first
     assert ranked_boost.iloc[0]["name"] == "Tamil song"
+
+
+def test_diversify_recommendations_balances_visible_artist_and_source():
+    results = pd.DataFrame(
+        {
+            "name": [
+                "A1",
+                "A2",
+                "A3",
+                "A4",
+                "B1",
+                "C1",
+            ],
+            "artist": [
+                "Same Artist",
+                "Same Artist",
+                "Same Artist",
+                "Same Artist",
+                "Other Artist",
+                "Third Artist",
+            ],
+            "source": [
+                "bollywood_2026",
+                "bollywood_2026",
+                "bollywood_2026",
+                "bollywood_2026",
+                "regional_Tamil",
+                "regional_Punjabi",
+            ],
+            "hybrid_score": [0.99, 0.98, 0.97, 0.96, 0.80, 0.79],
+        }
+    )
+
+    diversified = diversify_recommendations(results, target_size=4, max_per_artist=2)
+    visible = diversified.head(4)
+
+    assert list(visible["name"]) == ["A1", "A2", "B1", "C1"]

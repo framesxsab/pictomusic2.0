@@ -11,10 +11,17 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 faiss = pytest.importorskip("faiss")
-from embeddings import build_faiss_index
+from embeddings import build_faiss_index, normalize_embeddings
 
 
 class TestBuildFaissIndex:
+    def test_normalizes_cached_fp16_vectors_for_cosine_search(self, sample_embeddings):
+        scaled = sample_embeddings.astype(np.float16)
+        scaled[0] = scaled[0] * 0.25
+        normalized = normalize_embeddings(scaled)
+
+        assert np.isclose(np.linalg.norm(normalized[0]), 1.0, atol=1e-6)
+
     def test_builds_index(self, sample_embeddings):
         index = build_faiss_index(sample_embeddings)
         assert index is not None
@@ -81,6 +88,22 @@ class TestMoodReranking:
             tags = str(row["mood_tags"]).lower().split(",")
             overlap = sum(1 for t in tags if t.strip() in mood_set)
             assert overlap == 0
+
+
+class TestVisualQuery:
+    def test_visual_music_query_is_ordered_and_genre_aware(self):
+        from recommend import ImageMusicRecommender
+
+        recommender = object.__new__(ImageMusicRecommender)
+        recommender.last_detected_themes = ["wedding and ceremony", "festival and lights"]
+
+        query = recommender._build_visual_music_query(
+            ["happy", "romantic", "danceable", "energetic"]
+        )
+
+        assert query.startswith("visual scene: wedding and ceremony, festival and lights")
+        assert "music mood: happy, romantic, danceable, energetic" in query
+        assert "preferred styles: bollywood, punjabi, filmi, folk" in query
 
 
 class TestEmbeddingsIO:

@@ -49,6 +49,10 @@ def _canonical_artist_key(value: object) -> str:
     return "|".join(sorted({part for part in cleaned if part})[:4])
 
 
+def _primary_artist_key(value: object) -> str:
+    return _canonical_artist_key(value).split("|", 1)[0]
+
+
 def song_identity_key(row: pd.Series) -> str:
     """Return a stable song identity key for duplicate suppression."""
     title_key = _clean_key_text(row.get("name"))
@@ -164,7 +168,8 @@ def apply_hybrid_ranking(
 
     ranked = results.copy()
     base = pd.to_numeric(ranked.get("similarity_score", 0.0), errors="coerce").fillna(0.0)
-    ranked["visual_score"] = base
+    if "visual_score" not in ranked.columns:
+        ranked["visual_score"] = base
     ranked["hybrid_score"] = base
 
     if boost_indian and "india_affinity" in ranked.columns:
@@ -341,3 +346,55 @@ def promote_preview_recommendations(
     remainder = ranked.loc[[idx for idx in ranked.index if idx not in selected_set]]
     balanced = pd.concat([selected_block, remainder], ignore_index=True)
     return balanced.drop(columns=["_original_rank", "_has_preview"]).reset_index(drop=True)
+
+
+def diversify_recommendations(
+    results: pd.DataFrame,
+    target_size: int,
+    max_per_artist: int = 2,
+    max_per_source: int = 4,
+) -> pd.DataFrame:
+    """Balance the visible set so one artist or source does not dominate."""
+    if results.empty or target_size <= 1:
+        return results
+
+    score_col = _score_column(results)
+    ranked = results.copy()
+    ranked["_original_rank"] = range(len(ranked))
+    if score_col:
+        ranked.sort_values([score_col, "_original_rank"], ascending=[False, True], inplace=True)
+
+    selected: list[int] = []
+    artist_counts: dict[str, int] = {}
+    source_counts: dict[str, int] = {}
+
+    for idx, row in ranked.iterrows():
+        artist_key = _primary_artist_key(row.get("artist")) or f"row:{idx}"
+        source_key = _norm(row.get("source")) or "unknown"
+        if artist_counts.get(artist_key, 0) >= max_per_artist:
+            continue
+        if source_counts.get(source_key, 0) >= max_per_source:
+            continue
+
+        selected.append(idx)
+        artist_counts[artist_key] = artist_counts.get(artist_key, 0) + 1
+        source_counts[source_key] = source_counts.get(source_key, 0) + 1
+        if len(selected) >= min(target_size, len(ranked)):
+            break
+
+    if len(selected) < min(target_size, len(ranked)):
+        for idx in ranked.index:
+            if idx not in selected:
+                selected.append(idx)
+            if len(selected) >= min(target_size, len(ranked)):
+                break
+
+    selected_set = set(selected)
+    diversified = pd.concat(
+        [
+            ranked.loc[selected],
+            ranked.loc[[idx for idx in ranked.index if idx not in selected_set]],
+        ],
+        ignore_index=True,
+    )
+    return diversified.drop(columns=["_original_rank"], errors="ignore").reset_index(drop=True)

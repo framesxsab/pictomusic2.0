@@ -92,6 +92,7 @@ def embedding_manifest_matches(
     embedding_shape: tuple[int, ...],
     model_name: str,
     text_fingerprint: str,
+    embedding_dtype: Optional[str] = None,
 ) -> tuple[bool, str]:
     """Validate that cached embeddings match the current corpus and model."""
     expected_shape = [int(value) for value in embedding_shape]
@@ -102,11 +103,21 @@ def embedding_manifest_matches(
         "model_name": str(model_name),
         "text_fingerprint": str(text_fingerprint),
     }
+    if embedding_dtype is not None:
+        checks["embedding_dtype"] = str(embedding_dtype)
     for key, expected in checks.items():
         actual = manifest.get(key)
         if actual != expected:
             return False, f"{key} mismatch: manifest={actual!r}, current={expected!r}"
     return True, "manifest matches"
+
+
+def normalize_embeddings(embeddings: np.ndarray) -> np.ndarray:
+    """Return float32 L2-normalized embeddings for cosine/IP retrieval."""
+    values = np.asarray(embeddings, dtype=np.float32)
+    norms = np.linalg.norm(values, axis=1, keepdims=True)
+    norms = np.where(norms > 0.0, norms, 1.0)
+    return values / norms
 
 
 @torch.no_grad()
@@ -188,7 +199,7 @@ def load_or_generate_embeddings(
 
     if os.path.exists(embeddings_path):
         try:
-            embeddings = np.load(embeddings_path)
+            embeddings = np.load(embeddings_path, allow_pickle=False)
             if len(embeddings) == dataset_size:
                 manifest = read_embeddings_manifest(manifest_path)
                 if manifest and text_fingerprint is not None:
@@ -198,6 +209,7 @@ def load_or_generate_embeddings(
                         embedding_shape=tuple(embeddings.shape),
                         model_name=model_name,
                         text_fingerprint=text_fingerprint,
+                        embedding_dtype=str(embeddings.dtype),
                     )
                     if matches:
                         logger.info(
@@ -256,7 +268,7 @@ def build_faiss_index(embeddings: np.ndarray) -> Optional[faiss.IndexFlatIP]:
     try:
         dimension = embeddings.shape[1]
         index = faiss.IndexFlatIP(dimension)
-        index.add(embeddings.astype("float32"))
+        index.add(normalize_embeddings(embeddings))
         logger.info("FAISS index built: %d vectors, %d dimensions", index.ntotal, dimension)
         return index
     except Exception as e:

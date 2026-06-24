@@ -3,6 +3,8 @@
 .github/
 .gitignore
 .gitattributes
+.claude/
+.cursor/
 
 # Python virtual environments
 .venv/
@@ -31,6 +33,7 @@ Music_original_backup.csv
 datasets/
 
 # Local/temporary files
+output/
 tmp/
 temp/
 tests/

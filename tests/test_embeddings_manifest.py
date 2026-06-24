@@ -62,6 +62,29 @@ def test_embedding_manifest_detects_model_mismatch():
     assert "model_name mismatch" in reason
 
 
+def test_embedding_manifest_detects_dtype_mismatch():
+    texts = ["Punjabi party track"]
+    manifest = build_embeddings_manifest(
+        dataset_size=1,
+        embedding_shape=(1, 512),
+        embedding_dtype="float16",
+        model_name="openai/clip-vit-base-patch32",
+        text_fingerprint=fingerprint_texts(texts),
+    )
+
+    matches, reason = embedding_manifest_matches(
+        manifest,
+        dataset_size=1,
+        embedding_shape=(1, 512),
+        embedding_dtype="float32",
+        model_name="openai/clip-vit-base-patch32",
+        text_fingerprint=fingerprint_texts(texts),
+    )
+
+    assert not matches
+    assert "embedding_dtype mismatch" in reason
+
+
 def test_load_cached_embeddings_with_verified_manifest(sample_embeddings, tmp_path):
     texts = [f"song {i}" for i in range(len(sample_embeddings))]
     embeddings_path = tmp_path / "embeddings.npy"

@@ -26,7 +26,43 @@ def render_catalog_health(stats: dict) -> None:
         render_stat_card("Languages", str(stats.get("languages", 0)), "langs", "var(--accent-rose)")
 
 
-def render_results(recommendations: pd.DataFrame, catalog_stats: dict | None = None) -> None:
+def render_search_context(search_context: dict | None) -> None:
+    """Render compact diagnostics for the retrieval profile used in the run."""
+    if not search_context:
+        return
+
+    query = str(search_context.get("query", "") or "").strip()
+    candidate_count = int(search_context.get("candidate_count", 0) or 0)
+    mood_confidence = float(search_context.get("mood_confidence", 0.0) or 0.0)
+    if not query and not candidate_count:
+        return
+
+    st.markdown(
+        f"""
+        <div style="background: rgba(255, 249, 235, 0.02); border: 1px solid var(--glass-border);
+                    border-radius: 0.75rem; padding: 0.85rem 1rem; margin-bottom: 1rem;">
+            <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted);
+                        text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.35rem;">
+                Retrieval Profile
+            </div>
+            <div style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5;">
+                {escape_html(query)}
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.65rem;">
+                <span class="song-tag">{candidate_count:,} candidates</span>
+                <span class="song-tag">confidence {mood_confidence:.3f}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_results(
+    recommendations: pd.DataFrame,
+    catalog_stats: dict | None = None,
+    search_context: dict | None = None,
+) -> None:
     """Render the full results section including stats and song cards."""
     recommendations = deduplicate_recommendations(recommendations)
 
@@ -34,6 +70,7 @@ def render_results(recommendations: pd.DataFrame, catalog_stats: dict | None = N
 
     render_catalog_health(catalog_stats or {})
     st.markdown("<br>", unsafe_allow_html=True)
+    render_search_context(search_context)
 
     # Stats row
     score_col = "hybrid_score" if "hybrid_score" in recommendations.columns else "similarity_score"

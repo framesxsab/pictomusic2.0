@@ -5,6 +5,10 @@ FROM python:3.11-slim
 RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
+    HF_HOME=/home/user/.cache/huggingface \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false \
     STREAMLIT_SERVER_ENABLE_CORS=false \
     STREAMLIT_SERVER_FILE_WATCHER_TYPE=none \
@@ -23,7 +27,7 @@ COPY --chown=user:user requirements.txt .
 # Switch to the non-root user
 USER user
 
-# Install python dependencies to the user's local directory
+# Install Python dependencies to the user's local directory
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application files with user ownership
@@ -33,4 +37,4 @@ COPY --chown=user:user . .
 EXPOSE 7860
 
 # HF Spaces expects port 7860
-CMD ["streamlit", "run", "src/app.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.enableCORS=false", "--server.enableXsrfProtection=false", "--server.fileWatcherType=none", "--browser.gatherUsageStats=false"]
+CMD ["streamlit", "run", "src/app.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.headless=true", "--server.enableCORS=false", "--server.enableXsrfProtection=false", "--server.fileWatcherType=none", "--browser.gatherUsageStats=false"]

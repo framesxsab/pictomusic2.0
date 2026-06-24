@@ -39,3 +39,7 @@ jobs:
       - name: Run India-first golden evaluation checks
         run: |
           python -m src.evaluation
+
+      - name: Verify Hugging Face deployment readiness
+        run: |
+          python scripts/verify_hf_deployment.py

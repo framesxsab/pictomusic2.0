@@ -209,6 +209,11 @@ with col_main:
                         st.session_state["show_results"] = True
                         st.session_state["catalog_stats"] = recommender.catalog_stats()
                         st.session_state["detected_themes"] = getattr(recommender, "last_detected_themes", [])
+                        st.session_state["search_context"] = {
+                            "query": getattr(recommender, "last_query_text", ""),
+                            "candidate_count": getattr(recommender, "last_candidate_count", 0),
+                            "mood_confidence": getattr(recommender, "last_mood_confidence", 0.0),
+                        }
                     else:
                         st.info(
                             "No matching tracks found with these filters. "
@@ -231,4 +236,5 @@ if st.session_state.get("show_results") and "recommendations" in st.session_stat
     render_results(
         st.session_state["recommendations"],
         st.session_state.get("catalog_stats"),
+        st.session_state.get("search_context"),
     )
