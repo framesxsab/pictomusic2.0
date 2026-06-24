@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from config import (
     APP_TITLE,
     AUDIO_FEATURE_COLUMNS,
+    DEMO_IMAGE_URL,
     FEATURE_DESCRIPTORS,
     IMAGE_MOOD_KEYWORDS,
     ALLOWED_IMAGE_EXTENSIONS,
@@ -92,3 +93,8 @@ def test_mood_top_n_is_at_least_two():
 
 def test_app_title_uses_public_brand_name():
     assert APP_TITLE == "PictoMusic 2.0"
+
+
+def test_demo_image_url_is_real_https_url():
+    assert DEMO_IMAGE_URL.startswith("https://")
+    assert "example.com" not in DEMO_IMAGE_URL

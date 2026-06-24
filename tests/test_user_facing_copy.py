@@ -53,3 +53,9 @@ def test_user_facing_copy_has_no_mojibake_markers():
         text = path.read_text(encoding="utf-8")
         for marker in mojibake_markers:
             assert marker not in text, f"mojibake marker {marker!r} found in {path}"
+
+
+def test_user_facing_copy_does_not_show_fake_image_url_placeholder():
+    for path in USER_FACING_FILES:
+        text = path.read_text(encoding="utf-8")
+        assert "example.com/image" not in text, f"fake image URL placeholder found in {path}"

@@ -15,6 +15,7 @@ from config import (
     APP_SUBTITLE,
     APP_TITLE,
     APP_VERSION_TAG,
+    DEMO_IMAGE_URL,
     HTTP_CHUNK_SIZE,
     MAX_UPLOAD_SIZE_BYTES,
     REQUEST_TIMEOUT,
@@ -90,9 +91,13 @@ with col_main:
             st.session_state.pop("cached_file_error", None)
 
     elif image_source_option == "Image URL":
+        if st.button("Use sample image", use_container_width=True):
+            st.session_state["image_url_input"] = DEMO_IMAGE_URL
+
         image_url = st.text_input(
             "Enter Image URL",
-            placeholder="https://example.com/image.jpg",
+            placeholder=DEMO_IMAGE_URL,
+            key="image_url_input",
             label_visibility="collapsed",
         )
         if image_url:

@@ -132,6 +132,7 @@ APP_ICON = "\U0001f3b5"
 APP_SUBTITLE = "Image-to-song discovery tuned for Indian moods, languages, and regional scenes"
 APP_VERSION_TAG = "v2026 India Retrieval"
 HERO_TITLE = "FIND THE SOUNDTRACK<br>INSIDE YOUR IMAGE"
+DEMO_IMAGE_URL = "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=80"
 
 # --- India-first retrieval ---
 INDIAN_LANGUAGE_CODES = {
