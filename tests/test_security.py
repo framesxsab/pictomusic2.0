@@ -9,7 +9,15 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from security import Image, escape_html, sanitize_filename, validate_image_url, validate_uploaded_file
+from security import (
+    Image,
+    build_uploaded_image_cache_key,
+    escape_html,
+    sanitize_filename,
+    validate_image_url,
+    validate_uploaded_file,
+    validate_uploaded_image_bytes,
+)
 
 
 VALID_PNG_BYTES = (
@@ -139,11 +147,21 @@ class TestValidateUploadedFile:
         validate_uploaded_file(file)  # Should not raise
         assert file.tell() == 0
 
+    def test_valid_png_bytes(self):
+        validate_uploaded_image_bytes("photo.png", VALID_PNG_BYTES)
+
+    def test_upload_cache_key_changes_for_same_name_and_size_content(self):
+        first = b"abc"
+        second = b"abd"
+
+        assert build_uploaded_image_cache_key("photo.png", first) != (
+            build_uploaded_image_cache_key("photo.png", second)
+        )
+
     def test_file_too_large(self):
         # Create a mock file that reports size > 10MB
         file = MagicMock()
         file.name = "big.jpg"
-        file.tell.return_value = 11 * 1024 * 1024  # 11 MB
-        file.read.return_value = b"\xff\xd8\xff" + b"\x00" * 100
+        file.read.return_value = b"\xff\xd8\xff" + b"\x00" * (11 * 1024 * 1024)
         with pytest.raises(ValueError, match="exceeds"):
             validate_uploaded_file(file)

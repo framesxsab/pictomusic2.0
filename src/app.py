@@ -23,9 +23,10 @@ from config import (
 from recommend import ImageMusicRecommender
 from security import (
     RateLimiter,
+    build_uploaded_image_cache_key,
     validate_image_content,
     validate_image_url,
-    validate_uploaded_file,
+    validate_uploaded_image_bytes,
 )
 from ui.components import render_hero_section
 from ui.results import render_results
@@ -66,12 +67,13 @@ with col_main:
             label_visibility="collapsed",
         )
         if uploaded_file is not None:
-            cache_key = f"{uploaded_file.name}_{uploaded_file.size}"
+            uploaded_bytes = uploaded_file.getvalue()
+            cache_key = build_uploaded_image_cache_key(uploaded_file.name, uploaded_bytes)
             if st.session_state.get("cached_file_key") != cache_key:
                 try:
-                    validate_uploaded_file(uploaded_file)
+                    validate_uploaded_image_bytes(uploaded_file.name, uploaded_bytes)
                     st.session_state["cached_file_key"] = cache_key
-                    st.session_state["cached_image_bytes"] = uploaded_file.getvalue()
+                    st.session_state["cached_image_bytes"] = uploaded_bytes
                     st.session_state["cached_file_error"] = None
                 except ValueError as exc:
                     st.session_state["cached_file_key"] = cache_key

@@ -3,6 +3,7 @@ PictoMusic Security Module
 Input validation, rate limiting, CSP headers, and sanitization.
 """
 
+import hashlib
 import re
 import time
 import socket
@@ -82,14 +83,19 @@ def validate_image_url(url: str) -> str:
     return url
 
 
-def validate_uploaded_file(file_obj) -> None:
-    """Validate an uploaded file (Streamlit UploadedFile). Raises ValueError on failure."""
-    if file_obj is None:
+def build_uploaded_image_cache_key(filename: str, image_bytes: bytes) -> str:
+    """Build a stable cache key that changes when upload content changes."""
+    digest = hashlib.sha256(image_bytes).hexdigest()[:16]
+    safe_name = sanitize_filename(filename or "upload")
+    return f"upload_{safe_name}_{len(image_bytes)}_{digest}"
+
+
+def validate_uploaded_image_bytes(filename: str, image_bytes: bytes) -> None:
+    """Validate uploaded image bytes. Raises ValueError on failure."""
+    if image_bytes is None:
         raise ValueError("No file provided.")
 
-    file_obj.seek(0, 2)
-    size = file_obj.tell()
-    file_obj.seek(0)
+    size = len(image_bytes)
 
     if size > MAX_UPLOAD_SIZE_BYTES:
         raise ValueError(
@@ -100,16 +106,14 @@ def validate_uploaded_file(file_obj) -> None:
     if size == 0:
         raise ValueError("Uploaded file is empty.")
 
-    name = getattr(file_obj, "name", "")
-    ext = Path(name).suffix.lower()
+    ext = Path(filename or "").suffix.lower()
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         raise ValueError(
             f"File extension '{ext}' is not allowed. "
             f"Use one of: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"
         )
 
-    header = file_obj.read(12)
-    file_obj.seek(0)
+    header = image_bytes[:12]
 
     valid = any(header.startswith(magic) for magic in _IMAGE_MAGIC_BYTES)
     if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
@@ -121,9 +125,22 @@ def validate_uploaded_file(file_obj) -> None:
             "The file header does not match any supported image format."
         )
 
-    image_bytes = file_obj.read()
-    file_obj.seek(0)
     validate_image_content(image_bytes)
+
+
+def validate_uploaded_file(file_obj) -> None:
+    """Validate an uploaded file-like object. Raises ValueError on failure."""
+    if file_obj is None:
+        raise ValueError("No file provided.")
+
+    try:
+        file_obj.seek(0)
+        image_bytes = file_obj.read()
+        file_obj.seek(0)
+    except Exception as exc:
+        raise ValueError(f"Could not read uploaded file: {exc}") from exc
+
+    validate_uploaded_image_bytes(getattr(file_obj, "name", ""), image_bytes)
 
 
 def validate_image_content(image_bytes: bytes) -> bool:
