@@ -127,7 +127,7 @@ RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("PICTOMUSIC_RATE_LIMIT_WINDOW", "60"))
 # PIL decompression bomb limit (~5000x5000 pixels)
 MAX_IMAGE_PIXELS = int(os.getenv("PICTOMUSIC_MAX_IMAGE_PIXELS", "25000000"))
 
-APP_TITLE = "Pictomusic"
+APP_TITLE = "PictoMusic 2.0"
 APP_ICON = "\U0001f3b5"
 APP_SUBTITLE = "Image-to-song discovery tuned for Indian moods, languages, and regional scenes"
 APP_VERSION_TAG = "v2026 India Retrieval"

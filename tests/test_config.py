@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from config import (
+    APP_TITLE,
     AUDIO_FEATURE_COLUMNS,
     FEATURE_DESCRIPTORS,
     IMAGE_MOOD_KEYWORDS,
@@ -87,3 +88,7 @@ def test_rag_alpha_high_conf_is_lower_than_low_conf():
 
 def test_mood_top_n_is_at_least_two():
     assert MOOD_TOP_N >= 2
+
+
+def test_app_title_uses_public_brand_name():
+    assert APP_TITLE == "PictoMusic 2.0"
