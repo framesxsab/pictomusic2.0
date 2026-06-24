@@ -4,6 +4,7 @@ Reusable HTML rendering functions for the Streamlit interface.
 """
 
 import urllib.parse
+import re
 
 from config import (
     HERO_TITLE,
@@ -13,6 +14,20 @@ from config import (
     YOUTUBE_SEARCH_URL,
 )
 from security import escape_html
+
+SPOTIFY_TRACK_ID_RE = re.compile(r"^[A-Za-z0-9]{22}$")
+
+
+def normalize_spotify_track_id(spotify_id: str) -> str:
+    """Return a clean Spotify track id or empty string for invalid metadata."""
+    value = str(spotify_id or "").strip()
+    if value.lower() in {"", "nan", "none", "no"}:
+        return ""
+    if value.startswith("spotify:track:"):
+        value = value.rsplit(":", 1)[-1]
+    if "/track/" in value:
+        value = value.split("/track/", 1)[1].split("?", 1)[0].split("/", 1)[0]
+    return value if SPOTIFY_TRACK_ID_RE.fullmatch(value) else ""
 
 
 def render_hero_section(version_tag: str, subtitle: str) -> None:
@@ -174,8 +189,9 @@ def render_preview_or_fallback(
 
         yt_url = f"{YOUTUBE_SEARCH_URL}{encoded_query}"
 
-        if spotify_id and str(spotify_id).strip():
-            sp_url = f"{SPOTIFY_TRACK_URL}{spotify_id}"
+        track_id = normalize_spotify_track_id(spotify_id)
+        if track_id:
+            sp_url = f"{SPOTIFY_TRACK_URL}{track_id}"
         else:
             sp_url = f"{SPOTIFY_SEARCH_URL}{encoded_query}"
 

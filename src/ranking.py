@@ -25,6 +25,8 @@ from config import (
     REGION_MATCH_WEIGHT,
 )
 
+SPOTIFY_TRACK_ID_RE = re.compile(r"^[A-Za-z0-9]{22}$")
+
 
 def _norm(value: object) -> str:
     return str(value or "").strip().lower()
@@ -79,8 +81,12 @@ def _score_column(df: pd.DataFrame) -> str:
 def _has_track_link(row: pd.Series) -> bool:
     if has_http(row.get("track_url")):
         return True
-    spotify_id = str(row.get("spotify_id", "") or "").strip().lower()
-    return bool(spotify_id and spotify_id != "nan")
+    spotify_id = str(row.get("spotify_id", "") or "").strip()
+    if spotify_id.startswith("spotify:track:"):
+        spotify_id = spotify_id.rsplit(":", 1)[-1]
+    if "/track/" in spotify_id:
+        spotify_id = spotify_id.split("/track/", 1)[1].split("?", 1)[0].split("/", 1)[0]
+    return bool(SPOTIFY_TRACK_ID_RE.fullmatch(spotify_id))
 
 
 def parse_release_year(value: object) -> Optional[int]:

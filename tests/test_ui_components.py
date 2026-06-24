@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from ui.components import build_song_card_html
+from ui.components import build_song_card_html, normalize_spotify_track_id
 
 
 def test_song_card_without_tags_does_not_indent_score_as_markdown_code():
@@ -62,3 +62,12 @@ def test_song_card_renders_placeholder_when_no_image_provided():
     assert "&#9835;" in html
     assert "ð" not in html
 
+def test_normalize_spotify_track_id_rejects_artist_paths():
+    assert normalize_spotify_track_id("/artist/asad-amanat-ali") == ""
+
+
+def test_normalize_spotify_track_id_accepts_track_ids_and_urls():
+    track_id = "4z0uvyo23735akUVgkK5iL"
+
+    assert normalize_spotify_track_id(track_id) == track_id
+    assert normalize_spotify_track_id(f"https://open.spotify.com/track/{track_id}?si=abc") == track_id
