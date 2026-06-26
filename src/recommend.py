@@ -53,6 +53,7 @@ from embeddings import (
 from preprocess import build_enhanced_description, run_preprocessing
 from ranking import (
     apply_hybrid_ranking,
+    apply_visual_intent_guardrails,
     deduplicate_recommendations,
     diversify_recommendations,
     prioritize_preference_matches,
@@ -486,6 +487,12 @@ class ImageMusicRecommender:
             # Scene→genre re-ranking
             if self.last_detected_themes:
                 results = self._rerank_with_scene_genre(results, self.last_detected_themes)
+
+            results = apply_visual_intent_guardrails(
+                results,
+                detected_themes=self.last_detected_themes,
+                mood_keywords=mood_keywords,
+            )
 
             results = apply_hybrid_ranking(
                 results,

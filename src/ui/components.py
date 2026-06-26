@@ -78,6 +78,7 @@ def render_song_card(
     language: str = "",
     region: str = "",
     visual_score: float | None = None,
+    intent_fit_score: float | None = None,
     release_year: str = "",
     img_url: str = "",
 ) -> None:
@@ -95,6 +96,7 @@ def render_song_card(
             language,
             region,
             visual_score,
+            intent_fit_score,
             release_year,
             img_url,
         ),
@@ -112,6 +114,7 @@ def build_song_card_html(
     language: str = "",
     region: str = "",
     visual_score: float | None = None,
+    intent_fit_score: float | None = None,
     release_year: str = "",
     img_url: str = "",
 ) -> str:
@@ -144,6 +147,9 @@ def build_song_card_html(
     visual_html = ""
     if visual_score is not None:
         visual_html = f'<span class="visual-score">Visual {visual_score:.4f}</span>'
+    intent_html = ""
+    if intent_fit_score is not None:
+        intent_html = f'<span class="visual-score">Intent {intent_fit_score:+.3f}</span>'
 
     return "\n".join(
         line
@@ -161,6 +167,7 @@ def build_song_card_html(
             f'<span class="score-value">{score:.4f}</span>',
             '</div>',
             visual_html,
+            intent_html,
             '<div class="score-bar-bg">',
             f'<div class="score-bar-fill" style="width: {score_pct:.1f}%;"></div>',
             '</div>',

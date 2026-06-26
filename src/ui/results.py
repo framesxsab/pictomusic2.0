@@ -133,7 +133,15 @@ def render_results(
         if score_candidate in recommendations.columns:
             display_cols.append(score_candidate)
 
-    optional_cols = ["genre", "language", "region", "release_year", "release_year_inferred", "spotify_id"]
+    optional_cols = [
+        "genre",
+        "language",
+        "region",
+        "release_year",
+        "release_year_inferred",
+        "spotify_id",
+        "intent_fit_score",
+    ]
     for col in optional_cols:
         if col in recommendations.columns:
             display_cols.append(col)
@@ -162,6 +170,11 @@ def render_results(
         language = str(row.get("language", "")) if "language" in recommendations.columns else ""
         region = str(row.get("region", "")) if "region" in recommendations.columns else ""
         visual_score = row.get("visual_score") if "visual_score" in recommendations.columns else None
+        intent_fit_score = (
+            row.get("intent_fit_score")
+            if "intent_fit_score" in recommendations.columns
+            else None
+        )
         release_year = ""
         for year_col in ("release_year", "release_year_inferred"):
             if year_col in recommendations.columns and str(row.get(year_col, "")).strip():
@@ -180,6 +193,7 @@ def render_results(
             language,
             region,
             visual_score,
+            intent_fit_score,
             release_year,
             img_url,
         )

@@ -16,11 +16,13 @@ def test_song_card_without_tags_does_not_indent_score_as_markdown_code():
         score=0.554,
         score_pct=80.0,
         visual_score=0.459,
+        intent_fit_score=0.22,
     )
 
     assert '<div class="score-container">' in html
     assert "\n    <div class=\"score-container\">" not in html
     assert "&amp;" in html
+    assert "Intent +0.220" in html
 
 
 def test_song_card_escapes_user_visible_text():

@@ -100,8 +100,20 @@ IMAGE_MOOD_KEYWORDS = {
     # Culture & spiritual
     "temple and spiritual":      ["peaceful", "acoustic", "devotional", "calm"],
     "wedding and ceremony":      ["happy", "romantic", "danceable", "energetic"],
+    # Gentle/uncertain everyday scenes
+    "cute pet or animal":        ["soothing", "calm", "peaceful", "acoustic", "warm"],
+    "sleeping and resting":      ["soothing", "calm", "peaceful", "acoustic", "lullaby"],
+    "cozy indoor softness":      ["soothing", "warm", "calm", "acoustic", "peaceful"],
+    "baby and childhood":        ["warm", "happy", "soothing", "calm", "playful"],
     # Food & lifestyle
     "food and cooking":          ["happy", "calm", "acoustic", "soothing"],
+    "sports and action":         ["energetic", "intense", "motivational", "groovy"],
+    "gym and fitness":           ["energetic", "intense", "motivational", "danceable"],
+    "cars and road trip":        ["energetic", "modern", "groovy", "confident"],
+    "work and technology":       ["modern", "focus", "calm", "electronic"],
+    "study and books":           ["focus", "calm", "acoustic", "soothing"],
+    "fashion and style":         ["modern", "groovy", "confident", "electronic"],
+    "luxury and nightlife":      ["modern", "electronic", "groovy", "confident"],
 }
 
 # Scene → genre mapping: when a visual scene is detected, prefer songs of these genres.
@@ -115,7 +127,57 @@ SCENE_GENRE_MAP = {
     "concert and live music":      ["indie_indian", "bollywood"],
     "couple in love":              ["bollywood", "ghazal", "hindi"],
     "rain and storm":              ["bollywood", "ghazal"],
+    "cute pet or animal":          ["acoustic", "indie_indian", "ghazal"],
+    "sleeping and resting":        ["acoustic", "ghazal", "classical"],
+    "cozy indoor softness":        ["acoustic", "indie_indian", "ghazal"],
+    "baby and childhood":          ["acoustic", "indie_indian", "filmi"],
+    "sports and action":           ["bollywood", "punjabi", "edm"],
+    "gym and fitness":             ["punjabi", "edm", "bollywood"],
+    "cars and road trip":          ["punjabi", "bollywood", "edm"],
+    "work and technology":         ["indie_indian", "electronic"],
+    "study and books":             ["acoustic", "indie_indian", "ghazal"],
+    "fashion and style":           ["indie_indian", "bollywood", "edm"],
+    "luxury and nightlife":        ["edm", "punjabi", "bollywood"],
 }
+
+# Visual intent guardrails prevent broad visual uploads from drifting into
+# catalog-near but semantically wrong songs.
+VISUAL_INTENT_AVOID_MOODS = {
+    "nature and greenery": ["party", "intense", "rap"],
+    "sunset and golden hour": ["party", "rap", "intense"],
+    "ocean and beach": ["dark", "sad", "intense"],
+    "rain and storm": ["party", "danceable", "happy"],
+    "mountain and landscape": ["party", "rap", "intense"],
+    "flowers and garden": ["party", "intense", "rap"],
+    "city and urban skyline": ["lullaby", "devotional"],
+    "night and darkness": ["happy", "playful", "devotional"],
+    "street at night with lights": ["lullaby", "devotional"],
+    "portrait and emotion": ["party", "intense"],
+    "couple in love": ["party", "rap", "intense"],
+    "friends laughing and happy": ["sad", "dark", "lullaby"],
+    "person sad and alone": ["party", "danceable", "happy", "energetic"],
+    "party and celebration": ["sad", "calm", "lullaby", "devotional"],
+    "festival and lights": ["sad", "lullaby"],
+    "dance and movement": ["sad", "calm", "lullaby"],
+    "concert and live music": ["lullaby", "devotional"],
+    "temple and spiritual": ["party", "rap", "intense", "electronic"],
+    "wedding and ceremony": ["sad", "dark"],
+    "cute pet or animal": ["energetic", "danceable", "party", "intense", "rap"],
+    "sleeping and resting": ["energetic", "danceable", "party", "intense", "rap"],
+    "cozy indoor softness": ["energetic", "danceable", "party", "intense", "rap"],
+    "baby and childhood": ["intense", "rap", "dark"],
+    "food and cooking": ["intense", "rap", "dark"],
+    "sports and action": ["sad", "calm", "lullaby", "devotional"],
+    "gym and fitness": ["sad", "calm", "lullaby", "devotional"],
+    "cars and road trip": ["lullaby", "devotional"],
+    "work and technology": ["party", "devotional", "sad"],
+    "study and books": ["party", "intense", "rap"],
+    "fashion and style": ["devotional", "lullaby", "sad"],
+    "luxury and nightlife": ["devotional", "lullaby", "sad"],
+}
+VISUAL_INTENT_MOOD_BOOST = float(os.getenv("PICTOMUSIC_INTENT_MOOD_BOOST", "0.08"))
+VISUAL_INTENT_GENRE_BOOST = float(os.getenv("PICTOMUSIC_INTENT_GENRE_BOOST", "0.07"))
+VISUAL_INTENT_AVOID_PENALTY = float(os.getenv("PICTOMUSIC_INTENT_AVOID_PENALTY", "0.14"))
 
 # Mood re-ranking boost factor (0.0 = no boost, 0.15 = moderate boost)
 MOOD_RERANK_BOOST = float(os.getenv("PICTOMUSIC_MOOD_BOOST", "0.1"))

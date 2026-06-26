@@ -184,6 +184,147 @@
       "min_preview_matches": 0
     },
     {
+      "id": "soft_pet_rest_uncertainty",
+      "prompt": "A cute resting pet image that should feel calm, cozy, and soothing rather than party-like",
+      "catalog_check": false,
+      "preferred_language": "any",
+      "preferred_region": "any",
+      "ranking_fixture": {
+        "expected_top": "gold_soft_calm",
+        "target_size": 3,
+        "min_preview_count": 1,
+        "require_unique": true,
+        "detected_themes": ["cute pet or animal", "sleeping and resting"],
+        "mood_keywords": ["soothing", "calm", "peaceful", "acoustic"],
+        "candidates": [
+          {
+            "id": "generic_party_neighbor",
+            "name": "Generic Party Neighbor",
+            "artist": "High Energy Artist",
+            "similarity_score": 0.66,
+            "mood_tags": "energetic,danceable,party",
+            "genre": "bollywood",
+            "preview": "https://p.scdn.co/party.mp3",
+            "img": "https://i.scdn.co/party.jpg"
+          },
+          {
+            "id": "gold_soft_calm",
+            "name": "Golden Soft Calm",
+            "artist": "Gentle Artist",
+            "similarity_score": 0.48,
+            "mood_tags": "soothing,calm,acoustic",
+            "genre": "acoustic",
+            "preview": "https://p.scdn.co/calm.mp3",
+            "img": "https://i.scdn.co/calm.jpg"
+          },
+          {
+            "id": "soft_no_preview",
+            "name": "Soft No Preview",
+            "artist": "Gentle Artist Two",
+            "similarity_score": 0.47,
+            "mood_tags": "peaceful,warm,acoustic",
+            "genre": "ghazal",
+            "preview": "",
+            "img": "https://i.scdn.co/soft.jpg"
+          }
+        ]
+      }
+    },
+    {
+      "id": "action_fitness_uncertainty",
+      "prompt": "A sports or gym image should feel energetic and motivational rather than sleepy or devotional",
+      "catalog_check": false,
+      "preferred_language": "any",
+      "preferred_region": "any",
+      "ranking_fixture": {
+        "expected_top": "gold_action_energy",
+        "target_size": 3,
+        "min_preview_count": 1,
+        "require_unique": true,
+        "detected_themes": ["sports and action", "gym and fitness"],
+        "mood_keywords": ["energetic", "intense", "motivational"],
+        "candidates": [
+          {
+            "id": "sleepy_visual_neighbor",
+            "name": "Sleepy Visual Neighbor",
+            "artist": "Quiet Artist",
+            "similarity_score": 0.64,
+            "mood_tags": "calm,soothing,lullaby",
+            "genre": "acoustic",
+            "preview": "https://p.scdn.co/sleepy.mp3",
+            "img": "https://i.scdn.co/sleepy.jpg"
+          },
+          {
+            "id": "gold_action_energy",
+            "name": "Golden Action Energy",
+            "artist": "High Energy Artist",
+            "similarity_score": 0.49,
+            "mood_tags": "energetic,intense,motivational",
+            "genre": "punjabi",
+            "preview": "https://p.scdn.co/action.mp3",
+            "img": "https://i.scdn.co/action.jpg"
+          },
+          {
+            "id": "fitness_backup",
+            "name": "Fitness Backup",
+            "artist": "Rhythm Artist",
+            "similarity_score": 0.48,
+            "mood_tags": "energetic,danceable,groovy",
+            "genre": "bollywood",
+            "preview": "",
+            "img": "https://i.scdn.co/fitness.jpg"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sad_portrait_uncertainty",
+      "prompt": "A lonely sad portrait should prefer melancholic calm songs over random happy party hits",
+      "catalog_check": false,
+      "preferred_language": "any",
+      "preferred_region": "any",
+      "ranking_fixture": {
+        "expected_top": "gold_sad_calm",
+        "target_size": 3,
+        "min_preview_count": 1,
+        "require_unique": true,
+        "detected_themes": ["person sad and alone", "portrait and emotion"],
+        "mood_keywords": ["sad", "melancholic", "calm"],
+        "candidates": [
+          {
+            "id": "happy_party_neighbor",
+            "name": "Happy Party Neighbor",
+            "artist": "Party Artist",
+            "similarity_score": 0.63,
+            "mood_tags": "happy,danceable,party",
+            "genre": "bollywood",
+            "preview": "https://p.scdn.co/happy.mp3",
+            "img": "https://i.scdn.co/happy.jpg"
+          },
+          {
+            "id": "gold_sad_calm",
+            "name": "Golden Sad Calm",
+            "artist": "Ghazal Artist",
+            "similarity_score": 0.50,
+            "mood_tags": "sad,melancholic,calm",
+            "genre": "ghazal",
+            "preview": "https://p.scdn.co/sad.mp3",
+            "img": "https://i.scdn.co/sad.jpg"
+          },
+          {
+            "id": "romantic_backup",
+            "name": "Romantic Backup",
+            "artist": "Soft Artist",
+            "similarity_score": 0.49,
+            "mood_tags": "romantic,soothing,warm",
+            "genre": "bollywood",
+            "preview": "",
+            "img": "https://i.scdn.co/romantic.jpg"
+          }
+        ]
+      }
+    },
+    {
       "id": "preview_preference_visible_set",
       "prompt": "Synthetic fixture: preview songs should be common when close enough to non-preview scores",
       "catalog_check": false,

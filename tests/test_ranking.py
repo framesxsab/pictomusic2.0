@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from ranking import (
     apply_hybrid_ranking,
+    apply_visual_intent_guardrails,
     deduplicate_recommendations,
     diversify_recommendations,
     promote_preview_recommendations,
@@ -102,6 +103,37 @@ def test_deduplicate_recommendations_prefers_preview_variant():
     assert "no_preview" not in set(deduped["id"])
 
 
+def test_deduplicate_recommendations_collapses_same_title_family():
+    results = pd.DataFrame(
+        {
+            "id": ["title_many_artists", "title_single_artist", "other"],
+            "name": [
+                "Cutiepie (From Film)",
+                "Cutiepie",
+                "Soft Song",
+            ],
+            "artist": [
+                "Pritam, Pardeep Singh Sran, Nakash Aziz",
+                "Pritam",
+                "Other Artist",
+            ],
+            "hybrid_score": [0.82, 0.79, 0.70],
+            "preview": [
+                "",
+                "https://p.scdn.co/cutiepie.mp3",
+                "https://p.scdn.co/soft.mp3",
+            ],
+            "img": ["", "https://i.scdn.co/cutiepie.jpg", ""],
+        }
+    )
+
+    deduped = deduplicate_recommendations(results)
+
+    assert len(deduped) == 2
+    assert set(deduped["name"]) == {"Cutiepie", "Soft Song"}
+    assert "title_single_artist" in set(deduped["id"])
+
+
 def test_preview_promotion_favors_previews_but_keeps_important_match():
     results = pd.DataFrame(
         {
@@ -136,6 +168,85 @@ def test_preview_promotion_favors_previews_but_keeps_important_match():
 
     assert visible.iloc[0]["id"] == "important_non_preview"
     assert visible["preview"].astype(str).str.startswith("http").sum() == 2
+
+
+def test_visual_intent_guardrail_demotes_party_matches_for_resting_scenes():
+    results = pd.DataFrame(
+        {
+            "id": ["party_neighbor", "soft_match", "soft_backup"],
+            "name": ["Party Neighbor", "Soft Match", "Soft Backup"],
+            "artist": ["A", "B", "C"],
+            "similarity_score": [0.66, 0.48, 0.47],
+            "mood_tags": [
+                "energetic,danceable,party",
+                "soothing,calm,acoustic",
+                "peaceful,warm,acoustic",
+            ],
+            "genre": ["bollywood", "acoustic", "ghazal"],
+        }
+    )
+
+    guarded = apply_visual_intent_guardrails(
+        results,
+        detected_themes=["cute pet or animal", "sleeping and resting"],
+        mood_keywords=["soothing", "calm", "peaceful", "acoustic"],
+    )
+
+    assert list(guarded["id"][:2]) == ["soft_match", "soft_backup"]
+    assert guarded.iloc[0]["intent_fit_score"] > 0
+    assert guarded[guarded["id"] == "party_neighbor"].iloc[0]["intent_fit_score"] < 0
+
+
+def test_visual_intent_guardrail_keeps_action_uploads_energetic():
+    results = pd.DataFrame(
+        {
+            "id": ["sleepy_neighbor", "action_match", "fitness_match"],
+            "name": ["Sleepy Neighbor", "Action Match", "Fitness Match"],
+            "artist": ["A", "B", "C"],
+            "similarity_score": [0.64, 0.49, 0.48],
+            "mood_tags": [
+                "calm,soothing,lullaby",
+                "energetic,intense,motivational",
+                "energetic,danceable,groovy",
+            ],
+            "genre": ["acoustic", "bollywood", "punjabi"],
+        }
+    )
+
+    guarded = apply_visual_intent_guardrails(
+        results,
+        detected_themes=["sports and action", "gym and fitness"],
+        mood_keywords=["energetic", "intense", "motivational"],
+    )
+
+    assert list(guarded["id"][:2]) == ["action_match", "fitness_match"]
+    assert guarded[guarded["id"] == "sleepy_neighbor"].iloc[0]["intent_fit_score"] < 0
+
+
+def test_visual_intent_guardrail_demotes_party_for_sad_portrait():
+    results = pd.DataFrame(
+        {
+            "id": ["party_neighbor", "sad_match", "romantic_match"],
+            "name": ["Party Neighbor", "Sad Match", "Romantic Match"],
+            "artist": ["A", "B", "C"],
+            "similarity_score": [0.63, 0.50, 0.49],
+            "mood_tags": [
+                "happy,danceable,party",
+                "sad,melancholic,calm",
+                "romantic,soothing,warm",
+            ],
+            "genre": ["bollywood", "ghazal", "bollywood"],
+        }
+    )
+
+    guarded = apply_visual_intent_guardrails(
+        results,
+        detected_themes=["person sad and alone", "portrait and emotion"],
+        mood_keywords=["sad", "melancholic", "calm"],
+    )
+
+    assert guarded.iloc[0]["id"] == "sad_match"
+    assert guarded[guarded["id"] == "party_neighbor"].iloc[0]["intent_fit_score"] < 0
 
 
 def test_preference_matches_stay_ahead_of_generic_visual_matches():

@@ -19,6 +19,7 @@ from config import (
     RAG_ALPHA_HIGH_CONF,
     RAG_ALPHA_LOW_CONF,
     SCENE_GENRE_MAP,
+    VISUAL_INTENT_AVOID_MOODS,
 )
 
 
@@ -80,6 +81,12 @@ def test_scene_genre_map_keys_are_mood_categories():
 def test_scene_genre_map_values_non_empty():
     for scene, genres in SCENE_GENRE_MAP.items():
         assert len(genres) > 0, f"SCENE_GENRE_MAP['{scene}'] has no genres"
+
+
+def test_visual_intent_avoid_profiles_are_known_scene_categories():
+    for scene, moods in VISUAL_INTENT_AVOID_MOODS.items():
+        assert scene in IMAGE_MOOD_KEYWORDS, f"Unknown visual intent scene: {scene}"
+        assert moods, f"VISUAL_INTENT_AVOID_MOODS['{scene}'] has no moods"
 
 
 def test_rag_alpha_high_conf_is_lower_than_low_conf():

@@ -12,6 +12,7 @@ import pandas as pd
 from config import (
     ARTWORK_WEIGHT,
     FRESHNESS_WEIGHT,
+    IMAGE_MOOD_KEYWORDS,
     INDIA_RELEVANCE_WEIGHT,
     INDIAN_GENRES,
     INDIAN_LANGUAGE_CODES,
@@ -23,6 +24,11 @@ from config import (
     PREVIEW_WEIGHT,
     RECENT_YEAR_THRESHOLD,
     REGION_MATCH_WEIGHT,
+    SCENE_GENRE_MAP,
+    VISUAL_INTENT_AVOID_MOODS,
+    VISUAL_INTENT_AVOID_PENALTY,
+    VISUAL_INTENT_GENRE_BOOST,
+    VISUAL_INTENT_MOOD_BOOST,
 )
 
 SPOTIFY_TRACK_ID_RE = re.compile(r"^[A-Za-z0-9]{22}$")
@@ -53,6 +59,14 @@ def _canonical_artist_key(value: object) -> str:
 
 def _primary_artist_key(value: object) -> str:
     return _canonical_artist_key(value).split("|", 1)[0]
+
+
+def _split_keyword_set(value: object) -> set[str]:
+    return {
+        _norm(part)
+        for part in re.split(r"[,|/]+", str(value or ""))
+        if _norm(part)
+    }
 
 
 def song_identity_key(row: pd.Series) -> str:
@@ -254,15 +268,114 @@ def deduplicate_recommendations(results: pd.DataFrame) -> pd.DataFrame:
         .drop_duplicates(subset=["_song_key"], keep="first")
     )
 
+    # In recommendation cards, repeated title variants are usually worse than
+    # a cover/remix edge case. Collapse identical cleaned titles so one song
+    # family cannot take multiple top slots with slightly different credits.
+    deduped["_title_key"] = deduped["name"].map(_clean_key_text)
+    deduped = deduped.drop_duplicates(subset=["_title_key"], keep="first")
+
     if score_col:
         deduped.sort_values([score_col, "_original_rank"], ascending=[False, True], inplace=True)
     else:
         deduped.sort_values("_original_rank", inplace=True)
 
     return deduped.drop(
-        columns=["_original_rank", "_song_key", "_has_preview", "_has_link", "_has_artwork"],
+        columns=[
+            "_original_rank",
+            "_song_key",
+            "_title_key",
+            "_has_preview",
+            "_has_link",
+            "_has_artwork",
+        ],
         errors="ignore",
     ).reset_index(drop=True)
+
+
+def _intent_terms(
+    detected_themes: Optional[Iterable[str]] = None,
+    mood_keywords: Optional[Iterable[str]] = None,
+) -> tuple[set[str], set[str], set[str]]:
+    preferred_moods = {_norm(keyword) for keyword in (mood_keywords or []) if _norm(keyword)}
+    avoided_moods: set[str] = set()
+    preferred_genres: set[str] = set()
+
+    for theme in (detected_themes or []):
+        theme_key = _norm(theme)
+        preferred_moods.update(_norm(keyword) for keyword in IMAGE_MOOD_KEYWORDS.get(theme_key, []))
+        avoided_moods.update(_norm(keyword) for keyword in VISUAL_INTENT_AVOID_MOODS.get(theme_key, []))
+        preferred_genres.update(
+            _norm(genre).replace("_", " ")
+            for genre in SCENE_GENRE_MAP.get(theme_key, [])
+        )
+
+    return preferred_moods, avoided_moods, preferred_genres
+
+
+def apply_visual_intent_guardrails(
+    results: pd.DataFrame,
+    detected_themes: Optional[Iterable[str]] = None,
+    mood_keywords: Optional[Iterable[str]] = None,
+) -> pd.DataFrame:
+    """Score visual intent agreement so semantically wrong songs drop in rank."""
+    if results.empty:
+        return results
+
+    preferred_moods, avoided_moods, preferred_genres = _intent_terms(
+        detected_themes=detected_themes,
+        mood_keywords=mood_keywords,
+    )
+    if not preferred_moods and not avoided_moods and not preferred_genres:
+        return results
+
+    score_col = "similarity_score" if "similarity_score" in results.columns else _score_column(results)
+    if not score_col:
+        return results
+
+    ranked = results.copy()
+
+    def row_tags(row: pd.Series) -> set[str]:
+        tags = set()
+        for column in ("mood_tags", "genre"):
+            if column in ranked.columns:
+                tags |= {
+                    tag.replace("_", " ")
+                    for tag in _split_keyword_set(row.get(column))
+                }
+        return tags
+
+    tag_sets = ranked.apply(row_tags, axis=1)
+    mood_overlap = tag_sets.map(lambda tags: min(len(tags & preferred_moods), 3)).astype(float)
+    genre_match = tag_sets.map(lambda tags: bool(tags & preferred_genres)).astype(float)
+    avoided_overlap = tag_sets.map(lambda tags: min(len(tags & avoided_moods), 2)).astype(float)
+    intent_fit = (
+        mood_overlap * VISUAL_INTENT_MOOD_BOOST
+        + genre_match * VISUAL_INTENT_GENRE_BOOST
+        - avoided_overlap * VISUAL_INTENT_AVOID_PENALTY
+    )
+
+    ranked[score_col] = (
+        pd.to_numeric(ranked[score_col], errors="coerce").fillna(0.0)
+        + intent_fit
+    )
+    if "similarity_score" in ranked.columns and score_col != "similarity_score":
+        ranked["similarity_score"] = ranked[score_col]
+    ranked["intent_fit_score"] = intent_fit
+    ranked.sort_values([score_col, "intent_fit_score"], ascending=[False, False], inplace=True)
+    return ranked.reset_index(drop=True)
+
+
+def apply_visual_uncertainty_guardrails(
+    results: pd.DataFrame,
+    detected_themes: Optional[Iterable[str]] = None,
+    mood_keywords: Optional[Iterable[str]] = None,
+) -> pd.DataFrame:
+    """Backward-compatible wrapper for the visual intent scorer."""
+    return apply_visual_intent_guardrails(
+        results,
+        detected_themes=detected_themes,
+        mood_keywords=mood_keywords,
+    )
 
 
 def prioritize_preference_matches(

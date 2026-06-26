@@ -19,6 +19,7 @@ from config import BASE_DIR, DATASET_PATH
 from preprocess import run_preprocessing
 from ranking import (
     apply_hybrid_ranking,
+    apply_visual_intent_guardrails,
     deduplicate_recommendations,
     promote_preview_recommendations,
     song_identity_key,
@@ -134,7 +135,14 @@ def evaluate_ranking_fixtures(cases: list[dict[str, Any]]) -> list[CaseResult]:
             continue
 
         candidates = pd.DataFrame(fixture["candidates"])
+        if "similarity_score" in candidates.columns and "visual_score" not in candidates.columns:
+            candidates["visual_score"] = candidates["similarity_score"]
         target_size = int(fixture.get("target_size", len(candidates)))
+        candidates = apply_visual_intent_guardrails(
+            candidates,
+            detected_themes=fixture.get("detected_themes", []),
+            mood_keywords=fixture.get("mood_keywords", []),
+        )
         ranked = apply_hybrid_ranking(
             candidates,
             preferred_language=case.get("preferred_language", "any"),
