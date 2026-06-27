@@ -12,6 +12,13 @@ USER_FACING_FILES = [
     PROJECT_ROOT / "src" / "ui" / "sidebar.py",
 ]
 
+INTERACTIVE_UI_FILES = [
+    PROJECT_ROOT / "src" / "app.py",
+    PROJECT_ROOT / "src" / "ui" / "components.py",
+    PROJECT_ROOT / "src" / "ui" / "results.py",
+    PROJECT_ROOT / "src" / "ui" / "sidebar.py",
+]
+
 
 def test_user_facing_copy_does_not_claim_neural_only_workflow():
     banned_phrases = [
@@ -59,3 +66,17 @@ def test_user_facing_copy_does_not_show_fake_image_url_placeholder():
     for path in USER_FACING_FILES:
         text = path.read_text(encoding="utf-8")
         assert "example.com/image" not in text, f"fake image URL placeholder found in {path}"
+
+
+def test_interactive_ui_does_not_expose_stack_in_loader_copy():
+    banned_phrases = [
+        "Loading CLIP",
+        "FAISS index",
+        "91K-song catalog",
+        "Initializing CLIP",
+    ]
+
+    for path in INTERACTIVE_UI_FILES:
+        text = path.read_text(encoding="utf-8")
+        for phrase in banned_phrases:
+            assert phrase not in text, f"{phrase!r} found in {path}"

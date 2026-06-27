@@ -4,6 +4,7 @@ import io
 import logging
 
 import streamlit as st
+from PIL import Image
 
 from log_config import setup_logging
 
@@ -28,7 +29,15 @@ from security import (
     validate_image_url,
     validate_uploaded_image_bytes,
 )
-from ui.components import render_hero_section
+from ui.components import (
+    format_file_size,
+    render_analysis_stage,
+    render_empty_result_guidance,
+    render_hero_section,
+    render_image_ready_panel,
+    render_intake_panel_header,
+    render_retrieval_summary,
+)
 from ui.results import render_results
 from ui.sidebar import render_sidebar
 from ui.styles import get_global_css
@@ -49,18 +58,93 @@ image_source_option = retrieval_options["image_source_option"]
 
 render_hero_section(APP_VERSION_TAG, APP_SUBTITLE)
 
+
+def _clear_cached_image() -> None:
+    st.session_state.pop("cached_file_key", None)
+    st.session_state.pop("cached_image_bytes", None)
+    st.session_state.pop("cached_file_error", None)
+    st.session_state.pop("cached_image_detail", None)
+    st.session_state.pop("cached_image_source_label", None)
+
+
+def _clear_results() -> None:
+    st.session_state.pop("recommendations", None)
+    st.session_state.pop("show_results", None)
+    st.session_state.pop("catalog_stats", None)
+    st.session_state.pop("detected_themes", None)
+    st.session_state.pop("search_context", None)
+
+
+def _describe_image_bytes(image_bytes: bytes) -> str:
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        width, height = image.size
+        image_format = str(image.format or "image").upper()
+        return f"{image_format} - {width:,} x {height:,} px"
+    except Exception:
+        return "Validated image"
+
+
+def _cache_valid_image(cache_key: str, image_bytes: bytes, source_label: str) -> None:
+    if st.session_state.get("cached_file_key") != cache_key:
+        _clear_results()
+    st.session_state["cached_file_key"] = cache_key
+    st.session_state["cached_image_bytes"] = image_bytes
+    st.session_state["cached_file_error"] = None
+    st.session_state["cached_image_detail"] = _describe_image_bytes(image_bytes)
+    st.session_state["cached_image_source_label"] = source_label
+
+
+def _cache_invalid_image(cache_key: str, message: str) -> None:
+    if st.session_state.get("cached_file_key") != cache_key:
+        _clear_results()
+    st.session_state["cached_file_key"] = cache_key
+    st.session_state["cached_image_bytes"] = None
+    st.session_state["cached_file_error"] = message
+    st.session_state["cached_image_detail"] = None
+    st.session_state["cached_image_source_label"] = None
+
+
+def _download_url_image(image_url: str) -> bytes:
+    validated_url = validate_image_url(image_url)
+    import requests
+
+    response = requests.get(validated_url, stream=True, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()
+
+    content_length = response.headers.get("Content-Length")
+    if content_length and int(content_length) > MAX_UPLOAD_SIZE_BYTES:
+        raise ValueError(f"Remote image too large ({format_file_size(int(content_length))})")
+
+    downloaded = []
+    downloaded_size = 0
+    for chunk in response.iter_content(chunk_size=HTTP_CHUNK_SIZE):
+        downloaded_size += len(chunk)
+        if downloaded_size > MAX_UPLOAD_SIZE_BYTES:
+            raise ValueError("Remote image exceeds the 10 MB limit during download.")
+        downloaded.append(chunk)
+
+    image_bytes = b"".join(downloaded)
+    validate_image_content(image_bytes)
+    return image_bytes
+
+
 image_source = None
+image_detail = ""
 col_pad_l, col_main, col_pad_r = st.columns([1, 3, 1])
 
 with col_main:
     # Reset cache when switching upload method
     if st.session_state.get("last_image_source_option") != image_source_option:
         st.session_state["last_image_source_option"] = image_source_option
-        st.session_state.pop("cached_file_key", None)
-        st.session_state.pop("cached_image_bytes", None)
-        st.session_state.pop("cached_file_error", None)
+        _clear_cached_image()
+        _clear_results()
 
     if image_source_option == "Upload Image":
+        render_intake_panel_header(
+            "Upload a frame",
+            "Use a clean portrait, scene, poster, or celebration image. The app validates format and size before analysis.",
+        )
         uploaded_file = st.file_uploader(
             "Drop your image here",
             type=[ext.lstrip(".") for ext in ALLOWED_IMAGE_EXTENSIONS],
@@ -72,13 +156,13 @@ with col_main:
             if st.session_state.get("cached_file_key") != cache_key:
                 try:
                     validate_uploaded_image_bytes(uploaded_file.name, uploaded_bytes)
-                    st.session_state["cached_file_key"] = cache_key
-                    st.session_state["cached_image_bytes"] = uploaded_bytes
-                    st.session_state["cached_file_error"] = None
+                    _cache_valid_image(
+                        cache_key,
+                        uploaded_bytes,
+                        uploaded_file.name or "Uploaded image",
+                    )
                 except ValueError as exc:
-                    st.session_state["cached_file_key"] = cache_key
-                    st.session_state["cached_image_bytes"] = None
-                    st.session_state["cached_file_error"] = str(exc)
+                    _cache_invalid_image(cache_key, str(exc))
 
             if st.session_state.get("cached_file_error"):
                 st.error(f"Image validation failed: {st.session_state['cached_file_error']}")
@@ -86,65 +170,55 @@ with col_main:
                 st.image(st.session_state["cached_image_bytes"], use_container_width=True)
                 image_source = io.BytesIO(st.session_state["cached_image_bytes"])
                 image_source.name = uploaded_file.name
+                image_detail = st.session_state.get("cached_image_detail", "Validated image")
+                render_image_ready_panel(
+                    st.session_state.get("cached_image_source_label", "Uploaded image"),
+                    image_detail,
+                    format_file_size(len(st.session_state["cached_image_bytes"])),
+                )
         else:
             # Clear cache when file is removed
-            st.session_state.pop("cached_file_key", None)
-            st.session_state.pop("cached_image_bytes", None)
-            st.session_state.pop("cached_file_error", None)
+            _clear_cached_image()
+            _clear_results()
 
     elif image_source_option == "Image URL":
-        if st.button("Use sample image", use_container_width=True):
-            st.session_state["image_url_input"] = DEMO_IMAGE_URL
+        render_intake_panel_header(
+            "Analyze from a URL",
+            "Paste a public JPG, PNG, or WEBP link. Private, local, and oversized images are blocked before processing.",
+        )
+        url_actions = st.columns([1, 1])
+        with url_actions[0]:
+            if st.button("Use sample image", use_container_width=True):
+                st.session_state["image_url_input"] = DEMO_IMAGE_URL
+                _clear_cached_image()
+                _clear_results()
+        with url_actions[1]:
+            if st.button("Clear image", use_container_width=True):
+                st.session_state["image_url_input"] = ""
+                _clear_cached_image()
+                _clear_results()
 
         image_url = st.text_input(
             "Enter Image URL",
             placeholder=DEMO_IMAGE_URL,
             key="image_url_input",
-            label_visibility="collapsed",
+            label_visibility="visible",
         )
+        image_url = str(image_url or "").strip()
         if image_url:
             cache_key = f"url_{image_url}"
             if st.session_state.get("cached_file_key") != cache_key:
                 try:
-                    validated_url = validate_image_url(image_url)
-                    import requests
-                    response = requests.get(
-                        validated_url, stream=True, timeout=REQUEST_TIMEOUT
-                    )
-                    response.raise_for_status()
-
-                    content_length = response.headers.get("Content-Length")
-                    if content_length and int(content_length) > MAX_UPLOAD_SIZE_BYTES:
-                        raise ValueError(
-                            f"Remote image too large ({int(content_length)} bytes)"
-                        )
-
-                    downloaded = []
-                    downloaded_size = 0
-                    for chunk in response.iter_content(chunk_size=HTTP_CHUNK_SIZE):
-                        downloaded_size += len(chunk)
-                        if downloaded_size > MAX_UPLOAD_SIZE_BYTES:
-                            raise ValueError(
-                                "Remote image exceeds size limit during download"
-                            )
-                        downloaded.append(chunk)
-
-                    image_bytes = b"".join(downloaded)
-                    validate_image_content(image_bytes)
-
-                    st.session_state["cached_file_key"] = cache_key
-                    st.session_state["cached_image_bytes"] = image_bytes
-                    st.session_state["cached_file_error"] = None
+                    with st.spinner("Checking and previewing the image URL..."):
+                        image_bytes = _download_url_image(image_url)
+                    _cache_valid_image(cache_key, image_bytes, "Remote image")
                 except ValueError as exc:
-                    st.session_state["cached_file_key"] = cache_key
-                    st.session_state["cached_image_bytes"] = None
-                    st.session_state["cached_file_error"] = str(exc)
+                    _cache_invalid_image(cache_key, str(exc))
                 except Exception as exc:
                     logging.warning("Image URL error: %s", exc)
-                    st.session_state["cached_file_key"] = cache_key
-                    st.session_state["cached_image_bytes"] = None
-                    st.session_state["cached_file_error"] = (
-                        "Could not load image from this URL. Please check the link and try again."
+                    _cache_invalid_image(
+                        cache_key,
+                        "Could not load image from this URL. Check that it is public and points directly to an image.",
                     )
 
             if st.session_state.get("cached_file_error"):
@@ -153,15 +227,29 @@ with col_main:
                 st.image(st.session_state["cached_image_bytes"], use_container_width=True)
                 image_source = io.BytesIO(st.session_state["cached_image_bytes"])
                 image_source.name = "url_image.jpg"
+                image_detail = st.session_state.get("cached_image_detail", "Validated image")
+                render_image_ready_panel(
+                    st.session_state.get("cached_image_source_label", "Remote image"),
+                    image_detail,
+                    format_file_size(len(st.session_state["cached_image_bytes"])),
+                )
         else:
             # Clear cache when URL is empty
-            st.session_state.pop("cached_file_key", None)
-            st.session_state.pop("cached_image_bytes", None)
-            st.session_state.pop("cached_file_error", None)
+            _clear_cached_image()
+            _clear_results()
 
     st.markdown("<br>", unsafe_allow_html=True)
+    if image_source is not None:
+        render_retrieval_summary(retrieval_options, image_detail or "Validated image")
 
-    if st.button("Analyze image", use_container_width=True):
+    analyze_disabled = image_source is None
+    if analyze_disabled:
+        st.markdown(
+            '<p class="ready-hint">Add a valid image to unlock analysis.</p>',
+            unsafe_allow_html=True,
+        )
+
+    if st.button("Analyze image", use_container_width=True, disabled=analyze_disabled):
         if image_source is None:
             st.warning("Please provide an image first.")
         elif not rate_limiter.check():
@@ -171,6 +259,8 @@ with col_main:
             )
         else:
             try:
+                stage_placeholder = st.empty()
+
                 @st.cache_resource(show_spinner=False)
                 def get_recommender():
                     status_placeholder = st.empty()
@@ -178,10 +268,10 @@ with col_main:
 
                     def progress_cb(current, total):
                         pct = int((current / total) * 100)
-                        status_placeholder.text(f"Regenerating CLIP embeddings for {total:,} songs... ({pct}%)")
+                        status_placeholder.text(f"Refreshing the music map... ({pct}%)")
                         progress_placeholder.progress(current / total)
 
-                    status_placeholder.text("Initializing CLIP model and loading 91K song catalog...")
+                    status_placeholder.text("Preparing the music matcher...")
                     recommender = ImageMusicRecommender(progress_callback=progress_cb)
 
                     status_placeholder.empty()
@@ -191,14 +281,26 @@ with col_main:
                         st.cache_resource.clear()
                     return recommender
 
-                with st.spinner("Loading recommendation engine and FAISS index..."):
+                with stage_placeholder.container():
+                    render_analysis_stage(
+                        "Warming up the matcher",
+                        "Getting your music search ready.",
+                        0.28,
+                    )
+                with st.spinner("Getting the music matcher ready..."):
                     recommender = get_recommender()
 
                 if recommender.is_ready:
+                    with stage_placeholder.container():
+                        render_analysis_stage(
+                            "Reading the image",
+                            "Catching the color, scene, mood, and energy.",
+                            0.58,
+                        )
                     spinner_msg = (
-                        "Reading the image and ranking Indian music matches..."
+                        "Composing your Indian music matches..."
                         if retrieval_options["boost_indian"]
-                        else "Reading the image and ranking music matches..."
+                        else "Composing your music matches..."
                     )
                     with st.spinner(spinner_msg):
                         recommendations = recommender.recommend(
@@ -212,6 +314,12 @@ with col_main:
                         )
 
                     if not recommendations.empty:
+                        with stage_placeholder.container():
+                            render_analysis_stage(
+                                "Arranging the final set",
+                                "Balancing fit, freshness, playable previews, and variety.",
+                                1.0,
+                            )
                         st.session_state["recommendations"] = recommendations
                         st.session_state["show_results"] = True
                         st.session_state["catalog_stats"] = recommender.catalog_stats()
@@ -221,15 +329,25 @@ with col_main:
                             "candidate_count": getattr(recommender, "last_candidate_count", 0),
                             "mood_confidence": getattr(recommender, "last_mood_confidence", 0.0),
                         }
+                        stage_placeholder.empty()
                     else:
-                        st.info(
-                            "No matching tracks found with these filters. "
-                            "Try Any language/region or disable preview-only mode."
+                        stage_placeholder.empty()
+                        render_empty_result_guidance(
+                            "No tracks survived the current filters.",
+                            [
+                                "Switch language or region to Any.",
+                                "Turn off preview-only mode.",
+                                "Try an image with a clearer face, scene, or celebration cue.",
+                            ],
                         )
                 else:
+                    stage_placeholder.empty()
+                    logging.error(
+                        "Recommendation engine offline. Missing components: %s",
+                        ", ".join(recommender.missing_components()),
+                    )
                     st.error(
-                        "Recommendation engine offline. Missing: "
-                        + ", ".join(recommender.missing_components())
+                        "Recommendation engine offline. A required music search component is missing."
                     )
             except Exception as exc:
                 logging.error("Recommender error: %s", exc, exc_info=True)

@@ -64,6 +64,24 @@ Enable strict validation in deployment after the manifest is present:
 PICTOMUSIC_STRICT_EMBEDDING_MANIFEST=1
 ```
 
+The offline evaluation path also supports RL-style policy evaluation without
+changing production ranking. `src/offline_rl.py` provides:
+
+- reward mapping for actions such as preview plays, selections, saves, shares, skips, and dismissals,
+- logged-policy reward summaries,
+- inverse propensity scoring and self-normalized IPS when logs contain `propensity` and `target_propensity`,
+- offline linear policy scoring for candidate reranking experiments.
+
+Run it through the existing evaluator:
+
+```bash
+python -m src.evaluation --interaction-log path\to\interactions.csv
+```
+
+This is a safety layer, not a live learner. It should only graduate into the
+app after real feedback logs prove that a target policy beats the current
+hybrid ranking on offline value, golden checks, and manual image smoke tests.
+
 ## Recommended Fine-Tuning Roadmap
 
 ### Phase 1: Offline Weight Calibration
@@ -179,4 +197,3 @@ Do not ship a fine-tuned model unless it improves:
 - language/region match rate,
 - duplicate rate,
 - manual quality for Indian scenarios.
-

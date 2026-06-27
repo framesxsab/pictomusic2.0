@@ -57,6 +57,17 @@ Run deterministic recommendation quality checks:
 python -m src.evaluation
 ```
 
+Run the same checks with an optional offline RL / contextual-bandit log:
+
+```bash
+python -m src.evaluation --interaction-log path\to\interactions.csv
+```
+
+The interaction log can include `action`, optional `reward`, and optional
+`propensity` / `target_propensity` columns. When propensities are present, the
+evaluator reports IPS and self-normalized IPS estimates for a target policy.
+Without propensities, it reports logged average reward only.
+
 Run the Hugging Face deployment readiness gate:
 
 ```bash

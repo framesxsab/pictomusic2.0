@@ -16,6 +16,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from config import BASE_DIR, DATASET_PATH
+from offline_rl import estimate_policy_value, evaluate_ranked_policy
 from preprocess import run_preprocessing
 from ranking import (
     apply_hybrid_ranking,
@@ -53,6 +54,57 @@ def _norm_set(values: list[str]) -> set[str]:
 
 def _split_tags(value: object) -> set[str]:
     return _norm_set(str(value or "").split(","))
+
+
+def _share(mask: pd.Series) -> float:
+    if len(mask) == 0:
+        return 0.0
+    return round(float(mask.mean()), 4)
+
+
+def _visible_case_metrics(visible: pd.DataFrame, case: dict[str, Any]) -> dict[str, Any]:
+    """Return ranking-quality metrics for the visible recommendation set."""
+    metrics: dict[str, Any] = {}
+    if visible.empty:
+        return {
+            "visible_language_match_share": 0.0,
+            "visible_region_match_share": 0.0,
+            "visible_mood_match_share": 0.0,
+            "visible_preview_share": 0.0,
+        }
+
+    languages = _norm_set(case.get("required_languages", []))
+    if languages and "language" in visible.columns:
+        metrics["visible_language_match_share"] = _share(
+            visible["language"].fillna("").astype(str).str.lower().isin(languages)
+        )
+    else:
+        metrics["visible_language_match_share"] = 0.0
+
+    regions = _norm_set(case.get("required_regions", []))
+    if regions and "region" in visible.columns:
+        metrics["visible_region_match_share"] = _share(
+            visible["region"].fillna("").astype(str).str.lower().isin(regions)
+        )
+    else:
+        metrics["visible_region_match_share"] = 0.0
+
+    moods = _norm_set(case.get("required_moods", []))
+    if moods and "mood_tags" in visible.columns:
+        metrics["visible_mood_match_share"] = _share(
+            visible["mood_tags"].map(lambda value: bool(_split_tags(value) & moods))
+        )
+    else:
+        metrics["visible_mood_match_share"] = 0.0
+
+    if "preview" in visible.columns:
+        metrics["visible_preview_share"] = _share(
+            visible["preview"].astype(str).str.startswith("http")
+        )
+    else:
+        metrics["visible_preview_share"] = 0.0
+
+    return metrics
 
 
 def _case_mask(df: pd.DataFrame, case: dict[str, Any]) -> pd.Series:
@@ -176,7 +228,25 @@ def evaluate_ranking_fixtures(cases: list[dict[str, Any]]) -> list[CaseResult]:
         if fixture.get("require_unique", True) and duplicate_count:
             failures.append(f"visible duplicate songs found: {duplicate_count}")
 
+        expected_rank = None
+        if "id" in ranked.columns:
+            expected_positions = ranked.index[ranked["id"].astype(str).eq(expected_top)].tolist()
+            expected_rank = int(expected_positions[0] + 1) if expected_positions else None
+
+        reward_by_id = {expected_top: 1.0}
+        for positive_id in fixture.get("positive_ids", []):
+            reward_by_id[str(positive_id)] = 1.0
+        for item_id, reward in fixture.get("reward_by_id", {}).items():
+            reward_by_id[str(item_id)] = float(reward)
+        policy_metrics = evaluate_ranked_policy(
+            ranked,
+            reward_by_id=reward_by_id,
+            item_id_col="id",
+            top_k=target_size,
+        )
+
         top_row = ranked.iloc[0].to_dict() if not ranked.empty else {}
+        quality_metrics = _visible_case_metrics(visible, case)
         results.append(
             CaseResult(
                 case_id=case["id"],
@@ -187,8 +257,12 @@ def evaluate_ranking_fixtures(cases: list[dict[str, Any]]) -> list[CaseResult]:
                     "target_size": target_size,
                     "visible_preview_count": preview_count,
                     "visible_duplicate_count": duplicate_count,
+                    "expected_top_rank": expected_rank,
                     "top_hybrid_score": round(float(top_row.get("hybrid_score", 0.0)), 4),
                     "top_visual_score": round(float(top_row.get("visual_score", 0.0)), 4),
+                    "policy_ndcg_at_k": round(float(policy_metrics["ndcg_at_k"]), 4),
+                    "policy_reciprocal_rank": round(float(policy_metrics["reciprocal_rank"]), 4),
+                    **quality_metrics,
                 },
                 failures=failures,
             )
@@ -217,6 +291,7 @@ def summarize_results(results: list[CaseResult]) -> dict[str, Any]:
 def run_quality_checks(
     dataset_path: str = DATASET_PATH,
     golden_path: str | Path = DEFAULT_GOLDEN_PATH,
+    interaction_log_path: str | Path | None = None,
 ) -> dict[str, Any]:
     cases = load_golden_cases(golden_path)
     df = run_preprocessing(dataset_path)
@@ -226,6 +301,9 @@ def run_quality_checks(
     summary = summarize_results(all_results)
     summary["catalog_rows"] = int(len(df))
     summary["golden_cases"] = int(len(cases))
+    if interaction_log_path:
+        interactions = pd.read_csv(interaction_log_path)
+        summary["offline_rl"] = estimate_policy_value(interactions)
     return summary
 
 
@@ -245,10 +323,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run PictoMusic golden quality checks.")
     parser.add_argument("--dataset", default=DATASET_PATH, help="Path to Music.csv")
     parser.add_argument("--golden", default=str(DEFAULT_GOLDEN_PATH), help="Path to golden JSON")
+    parser.add_argument(
+        "--interaction-log",
+        default=None,
+        help="Optional CSV of logged actions for offline RL/bandit evaluation",
+    )
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     args = parser.parse_args()
 
-    summary = run_quality_checks(dataset_path=args.dataset, golden_path=args.golden)
+    summary = run_quality_checks(
+        dataset_path=args.dataset,
+        golden_path=args.golden,
+        interaction_log_path=args.interaction_log,
+    )
     if args.json:
         print(json.dumps(summary, indent=2))
     else:

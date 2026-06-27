@@ -10,6 +10,7 @@ venv/
 !song_embeddings_fp16.npy
 *.log
 output/
+.playwright-cli/
 
 # Old/large data files
 src/spotify_millsongdata.csv

@@ -7,7 +7,12 @@ import streamlit as st
 
 from ranking import deduplicate_recommendations
 from security import escape_html
-from ui.components import render_preview_or_fallback, render_song_card, render_stat_card
+from ui.components import (
+    match_quality_label,
+    render_preview_or_fallback,
+    render_song_card,
+    render_stat_card,
+)
 
 
 def render_catalog_health(stats: dict) -> None:
@@ -78,12 +83,13 @@ def render_results(
         top_score = recommendations[score_col].max()
         avg_score = recommendations[score_col].mean()
         num_results = len(recommendations)
+        avg_pct = min((avg_score / top_score) * 100, 100) if top_score > 0 else 0
 
         stat_cols = st.columns(3)
         with stat_cols[0]:
-            render_stat_card("Top Match", f"{top_score:.3f}", "score")
+            render_stat_card("Best Fit", match_quality_label(100), "")
         with stat_cols[1]:
-            render_stat_card("Avg Score", f"{avg_score:.3f}", "avg", "var(--accent-green)")
+            render_stat_card("Set Quality", match_quality_label(avg_pct), "", "var(--accent-green)")
         with stat_cols[2]:
             render_stat_card("Tracks Found", str(num_results), "tracks", "var(--accent-warm)")
 
@@ -123,7 +129,7 @@ def render_results(
     )
     st.markdown(
         '<p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">'
-        "Tracks ranked by visual match, mood relevance, currentness, and playable metadata</p>",
+        "Tracks arranged by visual feel, mood, freshness, and listening variety</p>",
         unsafe_allow_html=True,
     )
 
