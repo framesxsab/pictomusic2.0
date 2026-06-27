@@ -15,22 +15,6 @@ from ui.components import (
 )
 
 
-def render_catalog_health(stats: dict) -> None:
-    """Render catalog health stats after a successful recommendation."""
-    if not stats:
-        return
-
-    stat_cols = st.columns(4)
-    with stat_cols[0]:
-        render_stat_card("Catalog", f"{stats.get('songs', 0):,}", "songs")
-    with stat_cols[1]:
-        render_stat_card("India Signals", f"{stats.get('india_pct', 0):.0f}", "%", "var(--accent-green)")
-    with stat_cols[2]:
-        render_stat_card("Previews", f"{stats.get('preview_pct', 0):.0f}", "%", "var(--accent-warm)")
-    with stat_cols[3]:
-        render_stat_card("Languages", str(stats.get("languages", 0)), "langs", "var(--accent-rose)")
-
-
 def render_search_context(search_context: dict | None) -> None:
     """Render compact diagnostics for the retrieval profile used in the run."""
     if not search_context:
@@ -65,16 +49,13 @@ def render_search_context(search_context: dict | None) -> None:
 
 def render_results(
     recommendations: pd.DataFrame,
-    catalog_stats: dict | None = None,
     search_context: dict | None = None,
 ) -> None:
-    """Render the full results section including stats and song cards."""
+    """Render the full results section with run context and song cards."""
     recommendations = deduplicate_recommendations(recommendations)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    render_catalog_health(catalog_stats or {})
-    st.markdown("<br>", unsafe_allow_html=True)
     render_search_context(search_context)
 
     # Stats row

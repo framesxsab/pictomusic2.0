@@ -80,3 +80,18 @@ def test_interactive_ui_does_not_expose_stack_in_loader_copy():
         text = path.read_text(encoding="utf-8")
         for phrase in banned_phrases:
             assert phrase not in text, f"{phrase!r} found in {path}"
+
+
+def test_results_page_does_not_render_catalog_summary():
+    text = (PROJECT_ROOT / "src" / "ui" / "results.py").read_text(encoding="utf-8")
+
+    assert "render_catalog_health" not in text
+    assert '"Catalog"' not in text
+
+
+def test_results_styles_reserve_stable_layout_space():
+    text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    assert "scrollbar-gutter: stable" in text
+    assert '[data-testid="stAudio"]' in text
+    assert ".element-container:has(audio)" in text

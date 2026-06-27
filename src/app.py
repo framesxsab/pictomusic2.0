@@ -70,7 +70,6 @@ def _clear_cached_image() -> None:
 def _clear_results() -> None:
     st.session_state.pop("recommendations", None)
     st.session_state.pop("show_results", None)
-    st.session_state.pop("catalog_stats", None)
     st.session_state.pop("detected_themes", None)
     st.session_state.pop("search_context", None)
 
@@ -322,7 +321,6 @@ with col_main:
                             )
                         st.session_state["recommendations"] = recommendations
                         st.session_state["show_results"] = True
-                        st.session_state["catalog_stats"] = recommender.catalog_stats()
                         st.session_state["detected_themes"] = getattr(recommender, "last_detected_themes", [])
                         st.session_state["search_context"] = {
                             "query": getattr(recommender, "last_query_text", ""),
@@ -360,6 +358,5 @@ with col_main:
 if st.session_state.get("show_results") and "recommendations" in st.session_state:
     render_results(
         st.session_state["recommendations"],
-        st.session_state.get("catalog_stats"),
         st.session_state.get("search_context"),
     )

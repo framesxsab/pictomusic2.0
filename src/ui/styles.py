@@ -41,6 +41,15 @@ html, body, [data-testid="stAppViewContainer"], .stApp,
     font-family: 'Anek Devanagari', sans-serif !important;
 }
 
+html {
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+}
+
+body, [data-testid="stAppViewContainer"], .stApp {
+    scrollbar-gutter: stable;
+}
+
 #MainMenu, header[data-testid="stHeader"], footer,
 [data-testid="stToolbar"], .stDeployButton {
     display: none !important;
@@ -168,7 +177,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     border-radius: 0.75rem;
     padding: 1.25rem;
     margin-bottom: 0.75rem;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -196,11 +205,10 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.3s ease;
 }
 
 .song-card:hover .song-art {
-    transform: scale(1.06);
+    transform: none;
 }
 
 .song-art-placeholder {
@@ -228,7 +236,6 @@ section[data-testid="stSidebar"] .stRadio label:hover {
 
 .song-card:hover {
     border-color: rgba(255, 249, 235, 0.2);
-    transform: translateX(4px);
     box-shadow:
         inset 0 1px 0 rgba(255, 249, 235, 0.1),
         0 18px 48px rgba(0, 0, 0, 0.28);
@@ -340,7 +347,7 @@ section[data-testid="stSidebar"] .stRadio label:hover {
     border-radius: 9999px;
     background: linear-gradient(90deg, var(--accent-green), var(--accent-warm), var(--accent-rose));
     box-shadow: 0 0 12px rgba(244, 182, 66, 0.35);
-    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: none;
 }
 
 /* Section headers */
@@ -788,6 +795,12 @@ section[data-testid="stSidebar"] [data-testid="stThumbValue"] {
 }
 
 /* Audio player */
+[data-testid="stAudio"],
+.element-container:has(audio) {
+    min-height: 48px;
+    margin-bottom: 0.75rem;
+}
+
 audio {
     width: 100%;
     height: 40px;
