@@ -7,9 +7,8 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
-import faiss
 import numpy as np
 import pandas as pd
 import requests
@@ -89,7 +88,7 @@ class ImageMusicRecommender:
         self.processor: Optional[CLIPProcessor] = None
         self.music_df: Optional[pd.DataFrame] = None
         self.song_embeddings: Optional[np.ndarray] = None
-        self.index: Optional[faiss.IndexFlatIP] = None
+        self.index: Optional[Any] = None
         self.mood_text_embeddings: Optional[np.ndarray] = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.last_detected_themes: List[str] = []

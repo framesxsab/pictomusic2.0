@@ -4,18 +4,28 @@ Handles text embedding generation, caching, and FAISS index construction.
 Run standalone: python -m src.embeddings --dataset Music.csv --output embeddings.npy
 """
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
 import logging
 import os
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
-import faiss
 import numpy as np
-import torch
-from transformers import CLIPModel, CLIPProcessor
+
+try:
+    import torch
+except ImportError:
+    torch = None
+
+try:
+    from transformers import CLIPModel, CLIPProcessor
+except ImportError:
+    CLIPModel = None
+    CLIPProcessor = None
 
 from config import (
     CLIP_MODEL_NAME,
@@ -29,6 +39,16 @@ from config import (
 
 logger = logging.getLogger(__name__)
 MANIFEST_VERSION = 1
+
+
+def _no_grad():
+    if torch is not None:
+        return torch.no_grad()
+
+    def decorator(func):
+        return func
+
+    return decorator
 
 
 def fingerprint_texts(texts: List[str]) -> str:
@@ -120,7 +140,7 @@ def normalize_embeddings(embeddings: np.ndarray) -> np.ndarray:
     return values / norms
 
 
-@torch.no_grad()
+@_no_grad()
 def generate_text_embeddings(
     texts: List[str],
     model: CLIPModel,
@@ -131,6 +151,9 @@ def generate_text_embeddings(
     progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> np.ndarray:
     """Batch-encode texts into L2-normalized CLIP embeddings."""
+    if torch is None:
+        raise RuntimeError("PyTorch is required to generate CLIP text embeddings.")
+
     all_embeddings = []
     total_batches = (len(texts) + batch_size - 1) // batch_size
 
@@ -162,7 +185,7 @@ def generate_text_embeddings(
     return result
 
 
-@torch.no_grad()
+@_no_grad()
 def generate_image_embedding(
     image,
     model: CLIPModel,
@@ -170,6 +193,10 @@ def generate_image_embedding(
     device: torch.device,
 ) -> Optional[np.ndarray]:
     """Encode a single PIL Image into an L2-normalized CLIP embedding."""
+    if torch is None:
+        logger.error("PyTorch is required to generate CLIP image embeddings.")
+        return None
+
     try:
         inputs = processor(images=image, return_tensors="pt")
         inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -263,14 +290,23 @@ def load_or_generate_embeddings(
     return embeddings
 
 
-def build_faiss_index(embeddings: np.ndarray) -> Optional[faiss.IndexFlatIP]:
+def build_faiss_index(embeddings: np.ndarray) -> Optional[Any]:
     """Create and populate a FAISS inner-product index."""
     try:
+        import faiss
+
         dimension = embeddings.shape[1]
         index = faiss.IndexFlatIP(dimension)
         index.add(normalize_embeddings(embeddings))
         logger.info("FAISS index built: %d vectors, %d dimensions", index.ntotal, dimension)
         return index
+    except ImportError as e:
+        logger.error(
+            "FAISS is not installed for this Python interpreter. "
+            "Install faiss-cpu from requirements.txt or run the repo venv.",
+        )
+        logger.debug("FAISS import error: %s", e)
+        return None
     except Exception as e:
         logger.error("Error building FAISS index: %s", e)
         return None
@@ -279,6 +315,12 @@ def build_faiss_index(embeddings: np.ndarray) -> Optional[faiss.IndexFlatIP]:
 if __name__ == "__main__":
     import pandas as pd
     from preprocess import build_enhanced_description, run_preprocessing
+
+    if torch is None or CLIPModel is None or CLIPProcessor is None:
+        raise SystemExit(
+            "Generating embeddings requires torch and transformers. "
+            "Install requirements.txt or run the repo virtual environment."
+        )
 
     parser = argparse.ArgumentParser(description="PictoMusic Embedding Generator")
     parser.add_argument("--dataset", default=DATASET_PATH, help="Path to dataset CSV")
