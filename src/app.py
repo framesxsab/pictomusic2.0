@@ -11,7 +11,6 @@ from log_config import setup_logging
 setup_logging()
 
 from config import (
-    ALLOWED_IMAGE_EXTENSIONS,
     APP_ICON,
     APP_SUBTITLE,
     APP_TITLE,
@@ -25,18 +24,20 @@ from recommend import ImageMusicRecommender
 from security import (
     RateLimiter,
     build_uploaded_image_cache_key,
+    prepare_uploaded_image_bytes,
     validate_image_content,
     validate_image_url,
-    validate_uploaded_image_bytes,
 )
 from ui.components import (
     format_file_size,
     render_analysis_stage,
+    render_dashboard_welcome,
     render_empty_result_guidance,
     render_hero_section,
     render_image_ready_panel,
     render_intake_panel_header,
     render_retrieval_summary,
+    render_workspace_section_header,
 )
 from ui.results import render_results
 from ui.sidebar import render_sidebar
@@ -47,7 +48,7 @@ st.set_page_config(
     page_title=f"{APP_TITLE} - AI Music Discovery",
     page_icon=APP_ICON,
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown(get_global_css(), unsafe_allow_html=True)
@@ -64,6 +65,7 @@ def _clear_cached_image() -> None:
     st.session_state.pop("cached_image_bytes", None)
     st.session_state.pop("cached_file_error", None)
     st.session_state.pop("cached_image_detail", None)
+    st.session_state.pop("cached_image_file_name", None)
     st.session_state.pop("cached_image_source_label", None)
 
 
@@ -84,13 +86,19 @@ def _describe_image_bytes(image_bytes: bytes) -> str:
         return "Validated image"
 
 
-def _cache_valid_image(cache_key: str, image_bytes: bytes, source_label: str) -> None:
+def _cache_valid_image(
+    cache_key: str,
+    image_bytes: bytes,
+    source_label: str,
+    file_name: str,
+) -> None:
     if st.session_state.get("cached_file_key") != cache_key:
         _clear_results()
     st.session_state["cached_file_key"] = cache_key
     st.session_state["cached_image_bytes"] = image_bytes
     st.session_state["cached_file_error"] = None
     st.session_state["cached_image_detail"] = _describe_image_bytes(image_bytes)
+    st.session_state["cached_image_file_name"] = file_name
     st.session_state["cached_image_source_label"] = source_label
 
 
@@ -101,6 +109,7 @@ def _cache_invalid_image(cache_key: str, message: str) -> None:
     st.session_state["cached_image_bytes"] = None
     st.session_state["cached_file_error"] = message
     st.session_state["cached_image_detail"] = None
+    st.session_state["cached_image_file_name"] = None
     st.session_state["cached_image_source_label"] = None
 
 
@@ -130,9 +139,15 @@ def _download_url_image(image_url: str) -> bytes:
 
 image_source = None
 image_detail = ""
-col_pad_l, col_main, col_pad_r = st.columns([1, 3, 1])
+col_left, col_right = st.columns([10, 12], gap="large")
 
-with col_main:
+with col_left:
+    render_workspace_section_header(
+        "Image desk",
+        "Choose the visual",
+        "Add one clear image, confirm it is ready, then start the match.",
+    )
+
     # Reset cache when switching upload method
     if st.session_state.get("last_image_source_option") != image_source_option:
         st.session_state["last_image_source_option"] = image_source_option
@@ -142,23 +157,31 @@ with col_main:
     if image_source_option == "Upload Image":
         render_intake_panel_header(
             "Upload a frame",
-            "Use a clean portrait, scene, poster, or celebration image. The app validates format and size before analysis.",
+            "Use a gallery photo, poster, or celebration image. Mobile HEIC photos are accepted and converted before analysis.",
         )
         uploaded_file = st.file_uploader(
-            "Drop your image here",
-            type=[ext.lstrip(".") for ext in ALLOWED_IMAGE_EXTENSIONS],
+            "Drop your image here or browse from your phone gallery",
             label_visibility="collapsed",
         )
-        if uploaded_file is not None:
-            uploaded_bytes = uploaded_file.getvalue()
-            cache_key = build_uploaded_image_cache_key(uploaded_file.name, uploaded_bytes)
+        active_file = uploaded_file
+        if active_file is not None:
+            uploaded_bytes = active_file.getvalue()
+            uploaded_name = getattr(active_file, "name", "") or "mobile_upload.jpg"
+            cache_key = build_uploaded_image_cache_key(uploaded_name, uploaded_bytes)
             if st.session_state.get("cached_file_key") != cache_key:
                 try:
-                    validate_uploaded_image_bytes(uploaded_file.name, uploaded_bytes)
+                    prepared_name, prepared_bytes, was_converted = prepare_uploaded_image_bytes(
+                        uploaded_name,
+                        uploaded_bytes,
+                    )
+                    source_label = uploaded_name or "Uploaded image"
+                    if was_converted:
+                        source_label = f"{source_label} converted to JPEG"
                     _cache_valid_image(
                         cache_key,
-                        uploaded_bytes,
-                        uploaded_file.name or "Uploaded image",
+                        prepared_bytes,
+                        source_label,
+                        prepared_name,
                     )
                 except ValueError as exc:
                     _cache_invalid_image(cache_key, str(exc))
@@ -168,7 +191,7 @@ with col_main:
             elif st.session_state.get("cached_image_bytes"):
                 st.image(st.session_state["cached_image_bytes"], use_container_width=True)
                 image_source = io.BytesIO(st.session_state["cached_image_bytes"])
-                image_source.name = uploaded_file.name
+                image_source.name = st.session_state.get("cached_image_file_name") or uploaded_name
                 image_detail = st.session_state.get("cached_image_detail", "Validated image")
                 render_image_ready_panel(
                     st.session_state.get("cached_image_source_label", "Uploaded image"),
@@ -210,7 +233,7 @@ with col_main:
                 try:
                     with st.spinner("Checking and previewing the image URL..."):
                         image_bytes = _download_url_image(image_url)
-                    _cache_valid_image(cache_key, image_bytes, "Remote image")
+                    _cache_valid_image(cache_key, image_bytes, "Remote image", "url_image.jpg")
                 except ValueError as exc:
                     _cache_invalid_image(cache_key, str(exc))
                 except Exception as exc:
@@ -355,8 +378,17 @@ with col_main:
                 )
 
 
-if st.session_state.get("show_results") and "recommendations" in st.session_state:
-    render_results(
-        st.session_state["recommendations"],
-        st.session_state.get("search_context"),
+with col_right:
+    render_workspace_section_header(
+        "Output desk",
+        "Review the set",
+        "Matched tracks, context, and previews stay in one focused queue.",
     )
+
+    if st.session_state.get("show_results") and "recommendations" in st.session_state:
+        render_results(
+            st.session_state["recommendations"],
+            st.session_state.get("search_context"),
+        )
+    else:
+        render_dashboard_welcome()

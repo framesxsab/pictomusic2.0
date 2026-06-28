@@ -17,6 +17,7 @@ from config import (
 from security import escape_html
 
 SPOTIFY_TRACK_ID_RE = re.compile(r"^[A-Za-z0-9]{22}$")
+MISSING_PREVIEW_VALUES = {"", "no", "nan", "none", "null"}
 
 
 def format_file_size(size_bytes: int) -> str:
@@ -83,13 +84,11 @@ def render_intake_panel_header(mode_label: str, hint: str) -> None:
     import streamlit as st
 
     st.markdown(
-        f"""
-        <div class="intake-shell">
-            <div class="intake-eyebrow">Visual input</div>
-            <div class="intake-title">{escape_html(mode_label)}</div>
-            <div class="intake-hint">{escape_html(hint)}</div>
-        </div>
-        """,
+        '<div class="intake-shell">'
+        '<div class="intake-eyebrow">Visual input</div>'
+        f'<div class="intake-title">{escape_html(mode_label)}</div>'
+        f'<div class="intake-hint">{escape_html(hint)}</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -100,27 +99,19 @@ def render_analysis_stage(label: str, detail: str, progress: float) -> None:
 
     pct = max(0.0, min(float(progress), 1.0)) * 100
     st.markdown(
-        f"""
-        <div class="analysis-stage" role="status" aria-live="polite">
-            <div class="analysis-loader">
-                <div class="analysis-disc">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-                <div class="analysis-bars" aria-hidden="true">
-                    <span></span><span></span><span></span><span></span><span></span>
-                </div>
-            </div>
-            <div class="analysis-stage-copy">
-                <div class="analysis-stage-label">{escape_html(label)}</div>
-                <div class="analysis-stage-detail">{escape_html(detail)}</div>
-            </div>
-            <div class="analysis-stage-track">
-                <div class="analysis-stage-fill" style="width: {pct:.0f}%;"></div>
-            </div>
-        </div>
-        """,
+        '<div class="analysis-stage" role="status" aria-live="polite">'
+        '<div class="analysis-loader">'
+        '<div class="analysis-disc"><span></span><span></span><span></span></div>'
+        '<div class="analysis-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>'
+        '</div>'
+        '<div class="analysis-stage-copy">'
+        f'<div class="analysis-stage-label">{escape_html(label)}</div>'
+        f'<div class="analysis-stage-detail">{escape_html(detail)}</div>'
+        '</div>'
+        '<div class="analysis-stage-track">'
+        f'<div class="analysis-stage-fill" style="width: {pct:.0f}%;"></div>'
+        '</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -131,12 +122,10 @@ def render_empty_result_guidance(message: str, suggestions: list[str]) -> None:
 
     items = "".join(f"<li>{escape_html(item)}</li>" for item in suggestions)
     st.markdown(
-        f"""
-        <div class="empty-guidance">
-            <div class="empty-guidance-title">{escape_html(message)}</div>
-            <ul>{items}</ul>
-        </div>
-        """,
+        '<div class="empty-guidance">'
+        f'<div class="empty-guidance-title">{escape_html(message)}</div>'
+        f'<ul>{items}</ul>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -153,27 +142,72 @@ def normalize_spotify_track_id(spotify_id: str) -> str:
     return value if SPOTIFY_TRACK_ID_RE.fullmatch(value) else ""
 
 
+def has_playable_preview_url(preview_url: str) -> bool:
+    """Return True only for remote preview URLs that should render as audio."""
+    value = str(preview_url or "").strip()
+    if value.lower() in MISSING_PREVIEW_VALUES:
+        return False
+
+    parsed = urllib.parse.urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
 def render_hero_section(version_tag: str, subtitle: str) -> None:
-    """Render the hero section with version badge, title, and subtitle."""
+    """Render the studio-console hero section."""
     import streamlit as st
 
     st.markdown(
-        f"""
-        <div style="text-align: center; padding: 1rem 0 0.5rem;" class="hero-glow">
-            <div class="version-badge">{escape_html(version_tag)}</div>
-        </div>
-        """,
+        '<section class="studio-hero">'
+        '<div class="hero-topline">'
+        f'<div class="version-badge">{escape_html(version_tag)}</div>'
+        '<div class="hero-status">Ready for analysis</div>'
+        '</div>'
+        '<div class="hero-grid">'
+        '<div class="hero-copy">'
+        f'<h1 class="hero-title">{HERO_TITLE}</h1>'
+        f'<p class="hero-subtitle">{escape_html(subtitle)}</p>'
+        '</div>'
+        '<div class="hero-console" aria-hidden="true">'
+        '<div class="console-card console-card-primary">'
+        '<div class="console-kicker">Image read</div>'
+        '<div class="console-title">Mood palette</div>'
+        '<div class="console-wave">'
+        '<span></span><span></span><span></span><span></span><span></span>'
+        '<span></span><span></span><span></span><span></span><span></span>'
+        '</div>'
+        '</div>'
+        '<div class="console-card">'
+        '<div class="console-kicker">Context</div>'
+        '<div class="console-title">India-aware</div>'
+        '</div>'
+        '<div class="console-card">'
+        '<div class="console-kicker">Playback</div>'
+        '<div class="console-title">Preview-ready</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+        '<div class="hero-meter" aria-hidden="true">'
+        '<span></span><span></span><span></span><span></span><span></span>'
+        '<span></span><span></span><span></span><span></span><span></span>'
+        '<span></span><span></span><span></span><span></span><span></span>'
+        '</div>'
+        '</section>',
         unsafe_allow_html=True,
     )
+
+
+def render_workspace_section_header(eyebrow: str, title: str, detail: str) -> None:
+    """Render a consistent section header for the two main work areas."""
+    import streamlit as st
+
     st.markdown(
-        f'<h1 class="hero-title">{HERO_TITLE}</h1>',
+        '<div class="workspace-header">'
+        f'<div class="workspace-eyebrow">{escape_html(eyebrow)}</div>'
+        f'<div class="workspace-title">{escape_html(title)}</div>'
+        f'<div class="workspace-detail">{escape_html(detail)}</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
-    st.markdown(
-        f'<p class="hero-subtitle">{escape_html(subtitle)}</p>',
-        unsafe_allow_html=True,
-    )
-    st.markdown("<br>", unsafe_allow_html=True)
 
 
 def build_retrieval_summary_html(
@@ -183,9 +217,9 @@ def build_retrieval_summary_html(
     """Build a short pre-run summary of the current search settings."""
     language = str(preferences.get("language_label") or preferences.get("preferred_language") or "Any")
     region = str(preferences.get("region_label") or preferences.get("preferred_region") or "Any")
-    preview_mode = "Preview-only" if preferences.get("require_preview") else "Preview-balanced"
-    recency = "Freshness on" if preferences.get("prefer_recent") else "Freshness neutral"
-    india = "India boost on" if preferences.get("boost_indian") else "Visual-first"
+    preview_mode = "Playable previews" if preferences.get("require_preview") else "Preview balanced"
+    recency = "Fresh releases" if preferences.get("prefer_recent") else "All eras"
+    india = "India-first" if preferences.get("boost_indian") else "Visual-first"
     top_k = str(preferences.get("top_k", "10"))
 
     chips = [language, region, preview_mode, recency, india, f"Top {top_k}"]
@@ -193,7 +227,7 @@ def build_retrieval_summary_html(
     return "\n".join(
         [
             '<div class="retrieval-summary">',
-            '<div class="retrieval-summary-label">Run profile</div>',
+            '<div class="retrieval-summary-label">Session profile</div>',
             f'<div class="retrieval-summary-title">{escape_html(image_detail)}</div>',
             f'<div class="retrieval-summary-chips">{chips_html}</div>',
             '</div>',
@@ -258,6 +292,8 @@ def render_song_card(
     intent_fit_score: float | None = None,
     release_year: str = "",
     img_url: str = "",
+    preview_url: str = "",
+    spotify_id: str = "",
 ) -> None:
     """Render a single song recommendation card."""
     import streamlit as st
@@ -276,6 +312,8 @@ def render_song_card(
             intent_fit_score,
             release_year,
             img_url,
+            preview_url=preview_url,
+            spotify_id=spotify_id,
         ),
         unsafe_allow_html=True,
     )
@@ -294,6 +332,8 @@ def build_song_card_html(
     intent_fit_score: float | None = None,
     release_year: str = "",
     img_url: str = "",
+    preview_url: str = "",
+    spotify_id: str = "",
 ) -> str:
     """Build card HTML without leading indentation that Markdown can treat as code."""
     safe_name = escape_html(song_name)
@@ -308,15 +348,26 @@ def build_song_card_html(
     tags_html = ""
     if genre or language or region or release_year:
         tag_items = []
-        if genre and genre not in ("", "unknown", "pop"):
-            tag_items.append(f'<span class="song-tag">{escape_html(genre)}</span>')
-        if language and language not in ("", "en"):
+        seen = set()
+
+        def add_tag(val: str, clean_fn=lambda x: x):
+            if not val:
+                return
+            val_clean = str(val).strip()
+            val_lower = val_clean.lower()
+            if val_lower and val_lower not in seen and val_lower not in ("unknown", "pop", "en", "western"):
+                seen.add(val_lower)
+                tag_items.append(f'<span class="song-tag">{escape_html(clean_fn(val_clean))}</span>')
+
+        add_tag(genre)
+        if language:
             lang_display = LANGUAGE_DISPLAY_MAP.get(language, language)
-            tag_items.append(f'<span class="song-tag">{escape_html(lang_display)}</span>')
-        if region and region not in ("", "western", "unknown"):
-            tag_items.append(f'<span class="song-tag">{escape_html(region.replace("_", " "))}</span>')
-        if release_year and release_year not in ("", "nan", "none"):
-            tag_items.append(f'<span class="song-tag">{escape_html(str(release_year))}</span>')
+            add_tag(lang_display)
+        if region:
+            add_tag(region, clean_fn=lambda x: x.replace("_", " "))
+        if release_year:
+            add_tag(str(release_year))
+
         if tag_items:
             tags_html = f'<div class="song-meta">{"".join(tag_items)}</div>'
 
@@ -328,6 +379,32 @@ def build_song_card_html(
     intent_html = ""
     if intent_fit_score is not None and float(intent_fit_score) > 0.04:
         intent_html = '<span class="match-reason">Mood aligned</span>'
+
+    # Embedded player or search links
+    player_html = ""
+    preview_url_str = str(preview_url or "").strip()
+    if has_playable_preview_url(preview_url_str):
+        player_html = f'<div class="song-player-container"><audio src="{escape_html(preview_url_str)}" controls></audio></div>'
+    else:
+        query = f"{song_name} {artist_name}".strip()
+        encoded_query = urllib.parse.quote(query)
+        yt_url = f"{YOUTUBE_SEARCH_URL}{encoded_query}"
+
+        track_id = normalize_spotify_track_id(spotify_id)
+        if track_id:
+            sp_url = f"{SPOTIFY_TRACK_URL}{track_id}"
+        else:
+            sp_url = f"{SPOTIFY_SEARCH_URL}{encoded_query}"
+
+        player_html = (
+            '<div class="song-player-container">'
+            '<div class="no-preview">'
+            '<span>Preview unavailable</span>'
+            f'<a href="{escape_html(yt_url)}" target="_blank" rel="noopener noreferrer" style="color: #ff0000; text-decoration: none;">&#9654; YouTube</a>'
+            f'<a href="{escape_html(sp_url)}" target="_blank" rel="noopener noreferrer" style="color: #1DB954; text-decoration: none;">&#9835; Spotify</a>'
+            '</div>'
+            '</div>'
+        )
 
     return "\n".join(
         line
@@ -349,6 +426,7 @@ def build_song_card_html(
             f'<div class="score-bar-fill" style="width: {score_pct:.1f}%;"></div>',
             '</div>',
             '</div>',
+            player_html,
             '</div>',
             '</div>',
         ]
@@ -365,8 +443,9 @@ def render_preview_or_fallback(
     """Render audio preview or fallback YouTube/Spotify search links."""
     import streamlit as st
 
-    if preview_url and str(preview_url).strip() and str(preview_url).strip().lower() != "no":
-        st.audio(str(preview_url), format="audio/mp3")
+    preview_url_str = str(preview_url or "").strip()
+    if has_playable_preview_url(preview_url_str):
+        st.audio(preview_url_str, format="audio/mp3")
     else:
         query = f"{song_name} {artist_name}".strip()
         encoded_query = urllib.parse.quote(query)
@@ -380,16 +459,41 @@ def render_preview_or_fallback(
             sp_url = f"{SPOTIFY_SEARCH_URL}{encoded_query}"
 
         st.markdown(
-            f"""
-            <div class="no-preview">
-                <span>Preview unavailable</span>
-                <a href="{yt_url}" target="_blank" rel="noopener noreferrer"
-                   style="color: #ff0000;">&#9654; YouTube</a>
-                <a href="{sp_url}" target="_blank" rel="noopener noreferrer"
-                   style="color: #1DB954;">&#9835; Spotify</a>
-            </div>
-            """,
+            '<div class="no-preview">'
+            '<span>Preview unavailable</span>'
+            f'<a href="{yt_url}" target="_blank" rel="noopener noreferrer" style="color: #ff0000;">&#9654; YouTube</a>'
+            f'<a href="{sp_url}" target="_blank" rel="noopener noreferrer" style="color: #1DB954;">&#9835; Spotify</a>'
+            '</div>',
             unsafe_allow_html=True,
         )
 
     st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
+
+
+def build_dashboard_welcome_html() -> str:
+    """Build the empty-state console shown before analysis."""
+    return (
+        '<div class="welcome-deck">'
+        '<div class="deck-vinyl-wrapper" aria-hidden="true">'
+        '<div class="deck-vinyl">'
+        '<div class="vinyl-groove-1"></div>'
+        '<div class="vinyl-groove-2"></div>'
+        '<div class="vinyl-label"><div class="vinyl-label-center"></div></div>'
+        '</div>'
+        '</div>'
+        '<div class="deck-msg">'
+        '<h3 class="deck-title">Ready for a visual</h3>'
+        '<p class="deck-desc">Upload a frame or paste a picture URL to prepare the listening profile.</p>'
+        '</div>'
+        '</div>'
+    )
+
+
+def render_dashboard_welcome() -> None:
+    """Render an ambient welcome console when no image has been analyzed yet."""
+    import streamlit as st
+
+    st.markdown(
+        build_dashboard_welcome_html(),
+        unsafe_allow_html=True,
+    )

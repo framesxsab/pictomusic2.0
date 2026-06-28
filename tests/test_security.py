@@ -12,7 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from security import (
     Image,
     build_uploaded_image_cache_key,
+    encode_jpeg_under_size_limit,
     escape_html,
+    has_supported_image_header,
+    prepare_uploaded_image_bytes,
     sanitize_filename,
     validate_image_url,
     validate_uploaded_file,
@@ -26,6 +29,20 @@ VALID_PNG_BYTES = (
     b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xcf\xc0\x00\x00"
     b"\x03\x01\x01\x00\xc9\xfe\x92\xef\x00\x00\x00\x00IEND\xaeB`\x82"
 )
+
+
+def make_heic_bytes() -> bytes:
+    pytest.importorskip("pillow_heif")
+    if Image is None:
+        pytest.skip("Pillow is not installed in this Python environment")
+
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()
+    image = Image.new("RGB", (8, 8), color=(244, 182, 66))
+    buffer = io.BytesIO()
+    image.save(buffer, format="HEIF")
+    return buffer.getvalue()
 
 
 class TestEscapeHtml:
@@ -149,6 +166,44 @@ class TestValidateUploadedFile:
 
     def test_valid_png_bytes(self):
         validate_uploaded_image_bytes("photo.png", VALID_PNG_BYTES)
+
+    def test_heic_header_is_supported_for_mobile_uploads(self):
+        heic_bytes = make_heic_bytes()
+
+        assert has_supported_image_header(heic_bytes, ".heic")
+
+    def test_mobile_heic_upload_is_converted_to_browser_safe_jpeg(self):
+        heic_bytes = make_heic_bytes()
+
+        prepared_name, prepared_bytes, converted = prepare_uploaded_image_bytes(
+            "phone-photo.HEIC",
+            heic_bytes,
+        )
+
+        assert prepared_name == "phone-photo.jpg"
+        assert converted is True
+        assert prepared_bytes.startswith(b"\xff\xd8\xff")
+        validate_uploaded_image_bytes(prepared_name, prepared_bytes)
+
+    def test_converted_jpeg_encoder_keeps_output_under_limit(self):
+        if Image is None:
+            pytest.skip("Pillow is not installed in this Python environment")
+
+        image = Image.new("RGB", (32, 32), color=(184, 146, 79))
+
+        encoded = encode_jpeg_under_size_limit(image, max_bytes=10_000)
+
+        assert encoded.startswith(b"\xff\xd8\xff")
+        assert len(encoded) <= 10_000
+
+    def test_converted_jpeg_encoder_rejects_impossible_limit(self):
+        if Image is None:
+            pytest.skip("Pillow is not installed in this Python environment")
+
+        image = Image.new("RGB", (32, 32), color=(184, 146, 79))
+
+        with pytest.raises(ValueError, match="Converted HEIC/HEIF image exceeds"):
+            encode_jpeg_under_size_limit(image, max_bytes=1)
 
     def test_upload_cache_key_changes_for_same_name_and_size_content(self):
         first = b"abc"

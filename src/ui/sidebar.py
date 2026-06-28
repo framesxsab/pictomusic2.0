@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from config import APP_ICON, APP_TITLE, LANGUAGE_DISPLAY_MAP
+from config import APP_TITLE, LANGUAGE_DISPLAY_MAP
 
 
 REGION_OPTIONS = {
@@ -33,18 +33,11 @@ def render_sidebar() -> dict:
     with st.sidebar:
         st.markdown(
             f"""
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 2rem;">
-                <div class="brand-mark">
-                    {APP_ICON}
-                </div>
-                <div>
-                    <div style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em;">
-                        {APP_TITLE}
-                    </div>
-                    <div style="font-size: 0.6rem; font-weight: 700; color: var(--accent-warm);
-                                letter-spacing: 0.2em; text-transform: uppercase;">
-                        India Retrieval
-                    </div>
+            <div class="sidebar-brand">
+                <div class="brand-mark" aria-hidden="true">PM</div>
+                <div class="brand-copy">
+                    <div class="brand-title">{APP_TITLE}</div>
+                    <div class="brand-subtitle">Music intelligence</div>
                 </div>
             </div>
             """,
@@ -75,17 +68,13 @@ def render_sidebar() -> dict:
 
         st.markdown(
             """
-            <div style="background: var(--panel-soft); border: 1px solid var(--glass-border);
-                        border-radius: 1rem; padding: 1rem; margin-top: 1rem;">
-                <div style="font-size: 0.6rem; font-weight: 700; color: var(--text-muted);
-                            letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.5rem;">
-                    Match Style
-                </div>
-                <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
-                    Tune the mix by language, region, freshness, and playable previews.
+            <div class="sidebar-note">
+                <div class="sidebar-note-label">Listening profile</div>
+                <div class="sidebar-note-copy">
+                    Balance language, region, freshness, and playable previews.
                     <br><br>
-                    <span style="font-size: 0.7rem; color: var(--text-muted);">
-                        Bollywood, Punjabi, Tamil, Telugu, Bengali, Marathi, Gujarati, Bhojpuri and more.
+                    <span>
+                        Built for Bollywood, Punjabi, Tamil, Telugu, Bengali, Marathi, Gujarati, Bhojpuri, and more.
                     </span>
                 </div>
             </div>

@@ -58,6 +58,8 @@ def test_allowed_extensions():
     assert ".jpg" in ALLOWED_IMAGE_EXTENSIONS
     assert ".png" in ALLOWED_IMAGE_EXTENSIONS
     assert ".webp" in ALLOWED_IMAGE_EXTENSIONS
+    assert ".heic" in ALLOWED_IMAGE_EXTENSIONS
+    assert ".heif" in ALLOWED_IMAGE_EXTENSIONS
 
 
 def test_upload_size_limit():

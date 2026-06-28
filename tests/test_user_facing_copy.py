@@ -95,3 +95,70 @@ def test_results_styles_reserve_stable_layout_space():
     assert "scrollbar-gutter: stable" in text
     assert '[data-testid="stAudio"]' in text
     assert ".element-container:has(audio)" in text
+
+
+def test_styles_do_not_reference_removed_accent_tokens():
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+    results_text = (PROJECT_ROOT / "src" / "ui" / "results.py").read_text(encoding="utf-8")
+
+    assert "accent-warm" not in style_text
+    assert "accent-warm" not in results_text
+
+
+def test_app_uses_bitcount_single_as_only_declared_font_family():
+    config_text = (PROJECT_ROOT / "src" / "config.py").read_text(encoding="utf-8")
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    assert "Bitcount+Single" in config_text
+    assert "--font-ui: 'Bitcount Single', 'Courier New', monospace;" in style_text
+    assert "*::before" in style_text
+    assert "*::after" in style_text
+    for removed_font in ["Plus Jakarta", "Outfit", "JetBrains"]:
+        assert removed_font not in config_text
+        assert removed_font not in style_text
+
+
+def test_instructional_step_ui_is_not_rendered():
+    app_text = (PROJECT_ROOT / "src" / "app.py").read_text(encoding="utf-8")
+    component_text = (PROJECT_ROOT / "src" / "ui" / "components.py").read_text(encoding="utf-8")
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    for removed_marker in ["render_workflow_ribbon", "workflow-ribbon", "deck-step", "step-num"]:
+        assert removed_marker not in app_text
+        assert removed_marker not in component_text
+        assert removed_marker not in style_text
+
+
+def test_styles_use_gold_silver_palette_tokens():
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    assert "#cfd6e2" in style_text
+    assert "#f1d27a" in style_text
+    assert "#b8924f" in style_text
+    for removed_token in ["#5f7cff", "#35d8ff", "#c77dff", "#ffd166"]:
+        assert removed_token not in style_text
+
+
+def test_card_surfaces_do_not_render_decorative_stripes():
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    striped_card_selectors = [
+        ".image-ready-panel::before",
+        ".retrieval-summary::before",
+        ".search-context-panel::before",
+        ".detected-themes-panel::before",
+        ".stat-card::before",
+        ".song-card::before",
+    ]
+
+    for selector in striped_card_selectors:
+        assert selector not in style_text
+
+
+def test_mobile_styles_keep_subtle_glass_surfaces():
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    assert "--glass-blur: 14px;" in style_text
+    assert "backdrop-filter: none" not in style_text
+    assert "-webkit-backdrop-filter: none" not in style_text
+    assert "backdrop-filter: blur(8px) saturate(1.06) !important;" in style_text

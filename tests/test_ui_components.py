@@ -6,11 +6,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from ui.components import (
+    build_dashboard_welcome_html,
     build_image_ready_html,
     build_retrieval_summary_html,
     build_song_card_html,
     build_stat_card_html,
     format_file_size,
+    has_playable_preview_url,
     match_quality_label,
     normalize_spotify_track_id,
 )
@@ -77,6 +79,38 @@ def test_song_card_renders_placeholder_when_no_image_provided():
     assert "&#9835;" in html
     assert "ð" not in html
 
+def test_song_card_falls_back_for_invalid_preview_metadata():
+    for preview_value in ["nan", "none", "no", "javascript:alert(1)", "/preview.mp3"]:
+        html = build_song_card_html(
+            idx=0,
+            song_name="Song Name",
+            artist_name="Artist Name",
+            score=0.8,
+            score_pct=80.0,
+            preview_url=preview_value,
+        )
+
+        assert "<audio" not in html
+        assert "Preview unavailable" in html
+        assert "YouTube" in html
+        assert "Spotify" in html
+
+
+def test_song_card_embeds_only_remote_preview_urls():
+    html = build_song_card_html(
+        idx=0,
+        song_name="Song Name",
+        artist_name="Artist Name",
+        score=0.8,
+        score_pct=80.0,
+        preview_url="https://p.scdn.co/preview.mp3",
+    )
+
+    assert '<audio src="https://p.scdn.co/preview.mp3" controls>' in html
+    assert has_playable_preview_url("https://p.scdn.co/preview.mp3")
+    assert not has_playable_preview_url("nan")
+
+
 def test_file_size_formatter_uses_compact_units():
     assert format_file_size(512) == "512 B"
     assert format_file_size(2048) == "2.0 KB"
@@ -110,8 +144,18 @@ def test_retrieval_summary_escapes_labels_and_shows_profile():
 
     assert "<Hindi>" not in html
     assert "&lt;Hindi&gt;" in html
-    assert "Preview-only" in html
+    assert "Playable previews" in html
     assert "Top 10" in html
+
+
+def test_dashboard_welcome_uses_consistent_empty_state_copy():
+    html = build_dashboard_welcome_html()
+
+    assert "Ready for a visual" in html
+    assert "Awaiting Visual Input" not in html
+    assert "listening profile" in html
+    assert "deck-step" not in html
+    assert "Add an image or picture URL" not in html
 
 
 def test_stat_card_separates_value_and_unit_text():

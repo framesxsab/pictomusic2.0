@@ -8,11 +8,24 @@ import streamlit as st
 from ranking import deduplicate_recommendations
 from security import escape_html
 from ui.components import (
+    build_song_card_html,
     match_quality_label,
     render_preview_or_fallback,
     render_song_card,
     render_stat_card,
 )
+
+
+def mood_read_label(confidence: float) -> str:
+    """Convert internal mood confidence into public-facing read strength."""
+    value = max(0.0, min(float(confidence or 0.0), 1.0))
+    if value >= 0.32:
+        return "Clear visual read"
+    if value >= 0.18:
+        return "Balanced visual read"
+    if value > 0:
+        return "Exploratory visual read"
+    return "Visual read ready"
 
 
 def render_search_context(search_context: dict | None) -> None:
@@ -26,23 +39,22 @@ def render_search_context(search_context: dict | None) -> None:
     if not query and not candidate_count:
         return
 
+    chips = "".join(
+        [
+            f'<span class="summary-chip">{candidate_count:,} songs considered</span>',
+            f'<span class="summary-chip">{escape_html(mood_read_label(mood_confidence))}</span>',
+        ]
+    )
     st.markdown(
-        f"""
-        <div style="background: rgba(255, 249, 235, 0.02); border: 1px solid var(--glass-border);
-                    border-radius: 0.75rem; padding: 0.85rem 1rem; margin-bottom: 1rem;">
-            <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted);
-                        text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.35rem;">
-                Retrieval Profile
-            </div>
-            <div style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5;">
-                {escape_html(query)}
-            </div>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.65rem;">
-                <span class="song-tag">{candidate_count:,} candidates</span>
-                <span class="song-tag">confidence {mood_confidence:.3f}</span>
-            </div>
-        </div>
-        """,
+        "\n".join(
+            [
+                '<div class="search-context-panel">',
+                '<div class="retrieval-summary-label">How this set was shaped</div>',
+                f'<div class="search-context-query">{escape_html(query)}</div>',
+                f'<div class="retrieval-summary-chips">{chips}</div>',
+                '</div>',
+            ]
+        ),
         unsafe_allow_html=True,
     )
 
@@ -72,7 +84,7 @@ def render_results(
         with stat_cols[1]:
             render_stat_card("Set Quality", match_quality_label(avg_pct), "", "var(--accent-green)")
         with stat_cols[2]:
-            render_stat_card("Tracks Found", str(num_results), "tracks", "var(--accent-warm)")
+            render_stat_card("Tracks Found", str(num_results), "tracks", "var(--accent-amber)")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -80,37 +92,28 @@ def render_results(
     detected_themes = st.session_state.get("detected_themes", [])
     if detected_themes:
         badges = "".join(
-            f'<span style="display: inline-block; background: var(--primary-dim); border: 1px solid var(--border-glow); '
-            f'color: var(--accent-warm); font-size: 0.72rem; font-weight: 700; border-radius: 9999px; '
-            f'padding: 0.3rem 0.75rem; margin-right: 0.4rem; margin-bottom: 0.4rem; text-transform: uppercase; '
-            f'letter-spacing: 0.05em;">'
-            f'{escape_html(theme)}</span>'
+            f'<span class="detected-theme-chip">{escape_html(theme)}</span>'
             for theme in detected_themes
         )
         st.markdown(
-            f"""
-            <div style="background: rgba(255, 249, 235, 0.02); border: 1px solid var(--glass-border);
-                        border-radius: 0.75rem; padding: 0.85rem 1rem; margin-bottom: 1.5rem; display: flex;
-                        align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                <span style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted);
-                            text-transform: uppercase; letter-spacing: 0.1em; flex-shrink: 0;">
-                    Detected Visual Themes
-                </span>
-                <div style="display: flex; flex-wrap: wrap; align-items: center;">
-                    {badges}
-                </div>
-            </div>
-            """,
+            "\n".join(
+                [
+                    '<div class="detected-themes-panel">',
+                    '<span class="detected-themes-label">Detected visual themes</span>',
+                    f'<div class="detected-theme-list">{badges}</div>',
+                    '</div>',
+                ]
+            ),
             unsafe_allow_html=True,
         )
 
     st.markdown(
-        '<div class="section-header">Music <span class="section-accent">Recommendations</span></div>',
+        '<div class="section-header">Curated <span class="section-accent">Set</span></div>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">'
-        "Tracks arranged by visual feel, mood, freshness, and listening variety</p>",
+        '<p class="section-subtitle">'
+        "A tighter sequence shaped by mood, region, freshness, and listening variety.</p>",
         unsafe_allow_html=True,
     )
 
@@ -147,6 +150,7 @@ def render_results(
         else 1.0
     )
 
+    cards_html = []
     for idx, row in recommendations.reset_index(drop=True).iterrows():
         song_name = str(row.get("name", "N/A"))
         artist_name = str(row.get("artist", "N/A"))
@@ -169,22 +173,28 @@ def render_results(
                 break
 
         img_url = str(row.get("img", "")) if "img" in recommendations.columns else ""
+        preview = str(row.get("preview", "")) if "preview" in recommendations.columns else ""
+        spotify_id = str(row.get("spotify_id", "")) if "spotify_id" in recommendations.columns else ""
 
-        render_song_card(
+        card_html = build_song_card_html(
             idx,
             song_name,
             artist_name,
             score,
             score_pct,
-            genre,
-            language,
-            region,
-            visual_score,
-            intent_fit_score,
-            release_year,
-            img_url,
+            genre=genre,
+            language=language,
+            region=region,
+            visual_score=visual_score,
+            intent_fit_score=intent_fit_score,
+            release_year=release_year,
+            img_url=img_url,
+            preview_url=preview,
+            spotify_id=spotify_id,
         )
+        cards_html.append(card_html)
 
-        preview = str(row.get("preview", "")) if "preview" in recommendations.columns else ""
-        spotify_id = str(row.get("spotify_id", "")) if "spotify_id" in recommendations.columns else ""
-        render_preview_or_fallback(song_name, artist_name, preview, spotify_id)
+    st.markdown(
+        f'<div class="soundtrack-scroll-container">{"".join(cards_html)}</div>'.replace("\n", ""),
+        unsafe_allow_html=True,
+    )

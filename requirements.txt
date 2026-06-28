@@ -7,4 +7,5 @@ transformers==4.49.0
 numpy<2.3
 torch==2.6.0+cpu
 Pillow>=11.0
+pillow-heif>=0.20
 requests>=2.32

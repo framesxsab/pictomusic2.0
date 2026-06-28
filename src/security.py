@@ -4,6 +4,7 @@ Input validation, rate limiting, CSP headers, and sanitization.
 """
 
 import hashlib
+import io
 import re
 import time
 import socket
@@ -32,8 +33,23 @@ from config import (
 try:
     from PIL import Image
     Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+    try:
+        from pillow_heif import register_heif_opener
+        register_heif_opener()
+        HEIF_SUPPORT_AVAILABLE = True
+    except ImportError:
+        HEIF_SUPPORT_AVAILABLE = False
 except ImportError:
     Image = None
+    HEIF_SUPPORT_AVAILABLE = False
+
+HEIF_IMAGE_EXTENSIONS = {".heic", ".heif"}
+HEIF_BRANDS = {
+    b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis",
+    b"mif1", b"msf1",
+}
+JPEG_QUALITY_STEPS = (92, 86, 80, 74, 68, 60)
+JPEG_RESIZE_STEPS = (1.0, 0.85, 0.72, 0.60, 0.50, 0.42, 0.35)
 
 
 def escape_html(text: str) -> str:
@@ -113,11 +129,7 @@ def validate_uploaded_image_bytes(filename: str, image_bytes: bytes) -> None:
             f"Use one of: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"
         )
 
-    header = image_bytes[:12]
-
-    valid = any(header.startswith(magic) for magic in _IMAGE_MAGIC_BYTES)
-    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
-        valid = True
+    valid = has_supported_image_header(image_bytes, ext)
 
     if not valid:
         raise ValueError(
@@ -125,7 +137,124 @@ def validate_uploaded_image_bytes(filename: str, image_bytes: bytes) -> None:
             "The file header does not match any supported image format."
         )
 
+    if ext in HEIF_IMAGE_EXTENSIONS and not HEIF_SUPPORT_AVAILABLE:
+        raise ValueError(
+            "HEIC/HEIF mobile photos are supported only when pillow-heif is installed. "
+            "Please try JPG, PNG, or WEBP."
+        )
+
     validate_image_content(image_bytes)
+
+
+def has_supported_image_header(image_bytes: bytes, extension: str = "") -> bool:
+    """Return True when bytes match a supported upload image container."""
+    header = image_bytes[:64]
+    ext = str(extension or "").lower()
+
+    if any(header.startswith(magic) for magic in _IMAGE_MAGIC_BYTES):
+        if header[:4] == b"RIFF":
+            return header[8:12] == b"WEBP"
+        return True
+
+    if ext in HEIF_IMAGE_EXTENSIONS:
+        return is_heif_container(header)
+
+    return False
+
+
+def is_heif_container(header: bytes) -> bool:
+    """Detect HEIC/HEIF files without accepting arbitrary MP4 containers."""
+    if len(header) < 12 or header[4:8] != b"ftyp":
+        return False
+
+    major_brand = header[8:12].lower()
+    compatible_brands = {
+        header[idx: idx + 4].lower()
+        for idx in range(16, min(len(header), 64), 4)
+        if len(header[idx: idx + 4]) == 4
+    }
+    return major_brand in HEIF_BRANDS or bool(HEIF_BRANDS & compatible_brands)
+
+
+def _resize_image(image, scale: float):
+    """Return a scaled copy of an image, preserving tiny dimensions."""
+    if scale >= 1.0:
+        return image
+
+    width, height = image.size
+    resized_size = (
+        max(1, int(width * scale)),
+        max(1, int(height * scale)),
+    )
+    resampling = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
+    return image.resize(resized_size, resample=resampling)
+
+
+def _encode_jpeg(image, quality: int) -> bytes:
+    output = io.BytesIO()
+    image.save(output, format="JPEG", quality=quality, optimize=True)
+    return output.getvalue()
+
+
+def encode_jpeg_under_size_limit(image, max_bytes: int = MAX_UPLOAD_SIZE_BYTES) -> bytes:
+    """Encode RGB image bytes as JPEG without exceeding the upload limit."""
+    last_size = 0
+    for scale in JPEG_RESIZE_STEPS:
+        candidate = _resize_image(image, scale)
+        for quality in JPEG_QUALITY_STEPS:
+            encoded = _encode_jpeg(candidate, quality)
+            last_size = len(encoded)
+            if last_size <= max_bytes:
+                return encoded
+
+    limit_text = (
+        f"{max_bytes / (1024 * 1024):.1f} MB"
+        if max_bytes >= 1024 * 1024
+        else f"{max_bytes} bytes"
+    )
+    raise ValueError(
+        "Converted HEIC/HEIF image exceeds the maximum upload size of "
+        f"{limit_text} after JPEG conversion "
+        f"({last_size} bytes). Please try JPG, PNG, or WEBP."
+    )
+
+
+def prepare_uploaded_image_bytes(filename: str, image_bytes: bytes) -> tuple[str, bytes, bool]:
+    """Validate and normalize mobile uploads to browser-safe image bytes.
+
+    HEIC/HEIF is common from phone galleries but is not reliably previewable in
+    browsers or downstream image tooling, so it is decoded and re-encoded as JPEG.
+    """
+    validate_uploaded_image_bytes(filename, image_bytes)
+
+    ext = Path(filename or "").suffix.lower()
+    safe_name = sanitize_filename(filename or "upload")
+    if ext not in HEIF_IMAGE_EXTENSIONS:
+        return safe_name, image_bytes, False
+
+    if Image is None or not HEIF_SUPPORT_AVAILABLE:
+        raise ValueError(
+            "This mobile image format requires HEIC/HEIF support on the server. "
+            "Please try JPG, PNG, or WEBP."
+        )
+
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        image.load()
+        if image.mode not in {"RGB", "L"}:
+            image = image.convert("RGB")
+        elif image.mode == "L":
+            image = image.convert("RGB")
+
+        converted_bytes = encode_jpeg_under_size_limit(image)
+        validate_image_content(converted_bytes)
+
+        stem = Path(safe_name).stem or "mobile_upload"
+        return f"{stem}.jpg", converted_bytes, True
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(f"Could not convert mobile HEIC/HEIF image: {exc}") from exc
 
 
 def validate_uploaded_file(file_obj) -> None:
@@ -150,7 +279,6 @@ def validate_image_content(image_bytes: bytes) -> bool:
     if Image is None:
         return True  # Skip validation if PIL not available
 
-    import io
     try:
         img = Image.open(io.BytesIO(image_bytes))
         img.verify()

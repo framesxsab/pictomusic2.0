@@ -30,7 +30,7 @@ PREFERRED_FILTER_MIN_CANDIDATES = int(
     os.getenv("PICTOMUSIC_PREFERRED_FILTER_MIN_CANDIDATES", "50000")
 )
 
-ALLOWED_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
+ALLOWED_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
 MAX_UPLOAD_SIZE_MB = int(os.getenv("PICTOMUSIC_MAX_UPLOAD_MB", "10"))
 MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
 REQUEST_TIMEOUT = int(os.getenv("PICTOMUSIC_REQUEST_TIMEOUT", "10"))
@@ -191,9 +191,9 @@ MAX_IMAGE_PIXELS = int(os.getenv("PICTOMUSIC_MAX_IMAGE_PIXELS", "25000000"))
 
 APP_TITLE = "PictoMusic 2.0"
 APP_ICON = "\U0001f3b5"
-APP_SUBTITLE = "Image-to-song discovery tuned for Indian moods, languages, and regional scenes"
-APP_VERSION_TAG = "v2026 India Retrieval"
-HERO_TITLE = "FIND THE SOUNDTRACK<br>INSIDE YOUR IMAGE"
+APP_SUBTITLE = "A focused music desk for Indian moods, languages, regions, and visual scenes"
+APP_VERSION_TAG = "2026 India Edition"
+HERO_TITLE = "PictoMusic<br>Studio"
 DEMO_IMAGE_URL = "https://images.unsplash.com/photo-1764286954620-28029fbae9b6?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&w=640"
 
 # --- India-first retrieval ---
@@ -283,7 +283,7 @@ HTTP_CHUNK_SIZE = 8192
 YOUTUBE_SEARCH_URL = "https://www.youtube.com/results?search_query="
 SPOTIFY_TRACK_URL = "https://open.spotify.com/track/"
 SPOTIFY_SEARCH_URL = "https://open.spotify.com/search/"
-GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,700;9..144,800&display=swap"
+GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Bitcount+Single:wght@100..900&display=swap"
 
 # --- CSP policy domains ---
 CSP_IMG_SOURCES = "https://*.scdn.co https://* data:"
