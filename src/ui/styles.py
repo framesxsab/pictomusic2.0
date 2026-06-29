@@ -1622,7 +1622,9 @@ hr {
 }
 
 /* Sidebar collapsed expand control styling */
-div[data-testid="collapsedControl"] {
+div[data-testid="collapsedControl"],
+header [data-testid="stSidebarCollapseButton"],
+header button[data-testid="stBaseButton-headerNoPadding"] {
     background-color: rgba(18, 19, 23, 0.95) !important;
     border: 1px solid rgba(217, 224, 234, 0.28) !important;
     border-radius: 8px !important;
@@ -1633,25 +1635,32 @@ div[data-testid="collapsedControl"] {
     justify-content: center !important;
     width: 42px !important;
     height: 42px !important;
+    position: fixed !important;
     top: 0.85rem !important;
     left: 0.85rem !important;
     cursor: pointer !important;
     transition: border-color 0.2s ease, background-color 0.2s ease !important;
 }
 
-div[data-testid="collapsedControl"]:hover {
+div[data-testid="collapsedControl"]:hover,
+header [data-testid="stSidebarCollapseButton"]:hover,
+header button[data-testid="stBaseButton-headerNoPadding"]:hover {
     border-color: var(--accent-cyan) !important;
     background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-div[data-testid="collapsedControl"] button {
+div[data-testid="collapsedControl"] button,
+header [data-testid="stSidebarCollapseButton"] button,
+header button[data-testid="stBaseButton-headerNoPadding"] button {
     color: var(--text-primary) !important;
     fill: var(--text-primary) !important;
     background-color: transparent !important;
     border: none !important;
 }
 
-div[data-testid="collapsedControl"] svg {
+div[data-testid="collapsedControl"] svg,
+header [data-testid="stSidebarCollapseButton"] svg,
+header button[data-testid="stBaseButton-headerNoPadding"] svg {
     fill: var(--text-primary) !important;
     color: var(--text-primary) !important;
 }
