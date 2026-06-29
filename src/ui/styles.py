@@ -577,10 +577,13 @@ section[data-testid="stSidebar"] hr {
 [data-testid="stFileUploader"] > div,
 [data-testid="stCameraInput"] > div,
 [data-testid="stFileUploader"] section,
+[data-testid="stFileUploaderDropzone"],
 [data-testid="stCameraInput"] section,
 [data-testid="stFileUploader"] section > *,
+[data-testid="stFileUploaderDropzone"] > *,
 [data-testid="stCameraInput"] section > *,
 [data-testid="stFileUploader"] section > div,
+[data-testid="stFileUploaderDropzone"] > div,
 [data-testid="stCameraInput"] section > div,
 [data-testid="stFileUploader"] section > div > div {
     background: transparent !important;
@@ -600,7 +603,10 @@ section[data-testid="stSidebar"] hr {
 }
 
 [data-testid="stFileUploadDropzone"],
+[data-testid="stFileUploaderDropzone"],
 [data-testid="stCameraInput"] [data-testid="stFileUploadDropzone"],
+[data-testid="stCameraInput"] [data-testid="stFileUploaderDropzone"],
+[data-testid="stFileUploaderDropzone"] > *,
 [data-testid="stFileUploadDropzone"] > * {
     background:
         linear-gradient(135deg, rgba(217, 224, 234, 0.18), rgba(241, 210, 122, 0.11) 54%, rgba(185, 128, 104, 0.055)) !important;
@@ -609,23 +615,48 @@ section[data-testid="stSidebar"] hr {
     border-color: var(--border-glow) !important;
 }
 
-[data-testid="stFileUploadDropzone"] {
+[data-testid="stFileUploadDropzone"],
+[data-testid="stFileUploaderDropzone"] {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.9rem !important;
     border: 1px dashed rgba(241, 210, 122, 0.52) !important;
     border-radius: 8px !important;
-    padding: 2.3rem 1.4rem !important;
+    padding: 1.35rem 1.25rem !important;
+    min-height: 136px !important;
     box-shadow: var(--glass-shadow-quiet) !important;
     backdrop-filter: blur(10px) saturate(1.08) !important;
     -webkit-backdrop-filter: blur(10px) saturate(1.08) !important;
     transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
-[data-testid="stFileUploadDropzone"]:hover {
+[data-testid="stFileUploadDropzone"] > div,
+[data-testid="stFileUploadDropzone"] > div > div,
+[data-testid="stFileUploaderDropzone"] > span,
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.42rem !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+[data-testid="stFileUploadDropzone"]:hover,
+[data-testid="stFileUploaderDropzone"]:hover {
     border-color: var(--accent-cyan) !important;
     box-shadow: 0 0 30px rgba(241, 210, 122, 0.24) !important;
 }
 
 [data-testid="stFileUploadDropzone"] > div:first-child > div:first-child > span {
     font-size: 0 !important;
+    display: block !important;
+    max-width: 100% !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
 }
 
 [data-testid="stFileUploadDropzone"] > div:first-child > div:first-child > span::after {
@@ -637,6 +668,40 @@ section[data-testid="stSidebar"] hr {
 
 [data-testid="stFileUploadDropzone"] > div:first-child > div:first-child > small {
     font-size: 0 !important;
+    display: block !important;
+    max-width: 100% !important;
+    line-height: 1.4 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+}
+
+[data-testid="stFileUploaderDropzoneInstructions"],
+[data-testid="stFileUploaderDropzoneInstructions"] span,
+[data-testid="stFileUploaderDropzoneInstructions"] div {
+    display: block !important;
+    max-width: 100% !important;
+    line-height: 1.4 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    text-align: center !important;
+}
+
+[data-testid="stFileUploaderDropzone"] [data-testid="stIconMaterial"],
+[data-testid="stFileUploadDropzone"] [data-testid="stIconMaterial"],
+[data-testid="stFileUploaderDropzone"] button span[aria-hidden="true"],
+[data-testid="stFileUploadDropzone"] button span[aria-hidden="true"],
+[data-testid="stFileUploaderDropzone"] button span[class*="Icon"],
+[data-testid="stFileUploadDropzone"] button span[class*="Icon"],
+[data-testid="stFileUploaderDropzone"] button span:first-child:not(:last-child),
+[data-testid="stFileUploadDropzone"] button span:first-child:not(:last-child) {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
 }
 
 [data-testid="stFileUploadDropzone"] > div:first-child > div:first-child > small::after {
@@ -655,26 +720,57 @@ section[data-testid="stSidebar"] hr {
 [data-testid="stFileUploader"] small,
 [data-testid="stCameraInput"] small,
 [data-testid="stFileUploadDropzone"] span,
+[data-testid="stFileUploaderDropzone"] span,
 [data-testid="stFileUploadDropzone"] small,
+[data-testid="stFileUploaderDropzone"] small,
 [data-testid="stFileUploadDropzone"] p,
-[data-testid="stFileUploadDropzone"] div {
+[data-testid="stFileUploaderDropzone"] p,
+[data-testid="stFileUploadDropzone"] div,
+[data-testid="stFileUploaderDropzone"] div {
     color: var(--text-secondary) !important;
 }
 
 [data-testid="stFileUploadDropzone"] button,
-[data-testid="stFileUploader"] button[kind="secondary"],
-[data-testid="stBaseButton-secondary"] {
+[data-testid="stFileUploaderDropzone"] button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    width: 156px !important;
+    max-width: 100% !important;
+    min-height: 2.7rem !important;
+    padding: 0.72rem 1.15rem !important;
+    gap: 0 !important;
+    white-space: normal !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
     background: rgba(207, 214, 226, 0.18) !important;
     background-color: rgba(207, 214, 226, 0.18) !important;
     color: var(--text-primary) !important;
     border: 1px solid rgba(217, 224, 234, 0.28) !important;
     border-radius: 8px !important;
     font-weight: 700 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
-[data-testid="stBaseButton-secondary"]:hover {
+[data-testid="stFileUploaderDropzone"] button p,
+[data-testid="stFileUploadDropzone"] button p,
+[data-testid="stFileUploaderDropzone"] button [data-testid="stMarkdownContainer"],
+[data-testid="stFileUploadDropzone"] button [data-testid="stMarkdownContainer"] {
+    margin: 0 !important;
+    color: var(--text-primary) !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+}
+
+[data-testid="stFileUploadDropzone"] button:hover,
+[data-testid="stFileUploaderDropzone"] button:hover {
     background-color: rgba(241, 210, 122, 0.22) !important;
     border-color: var(--accent-cyan) !important;
+}
+
+[data-testid="stFileUploaderFile"] {
+    display: none !important;
 }
 
 .image-ready-panel,
@@ -859,6 +955,8 @@ section[data-testid="stSidebar"] hr {
 }
 
 .stButton > button {
+    width: 100% !important;
+    min-width: 0 !important;
     background: linear-gradient(135deg, var(--accent-cyan), var(--primary) 45%, var(--accent-fuchsia) 78%, var(--accent-amber)) !important;
     color: #05070d !important;
     border: 0 !important;
@@ -870,6 +968,15 @@ section[data-testid="stSidebar"] hr {
     padding: 0.78rem 2rem !important;
     transition: transform 0.2s ease, box-shadow 0.2s ease !important;
     box-shadow: 0 18px 42px rgba(241, 210, 122, 0.24), 0 0 22px rgba(217, 224, 234, 0.16) !important;
+}
+
+.stButton > button p,
+.stButton > button [data-testid="stMarkdownContainer"] {
+    margin: 0 !important;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: keep-all !important;
+    text-align: center !important;
 }
 
 .stButton > button:hover {
@@ -897,14 +1004,23 @@ section[data-testid="stSidebar"] hr {
 }
 
 .stRadio [role="radiogroup"] {
-    gap: 0.35rem !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.65rem !important;
+    width: 100% !important;
+    margin-bottom: 0.85rem !important;
 }
 
 .stRadio [role="radiogroup"] label {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    min-height: 2.75rem !important;
     background: rgba(255, 255, 255, 0.055) !important;
     border: 1px solid rgba(217, 224, 234, 0.16) !important;
     border-radius: 8px !important;
-    padding: 0.6rem 1rem !important;
+    padding: 0.66rem 0.85rem !important;
     color: var(--text-secondary) !important;
     font-weight: 700 !important;
     font-size: 0.85rem !important;
@@ -930,6 +1046,7 @@ section[data-testid="stSidebar"] hr {
 .stRadio [role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {
     font-size: 0.85rem !important;
     font-weight: 700 !important;
+    white-space: nowrap !important;
 }
 
 section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
@@ -1257,6 +1374,17 @@ hr {
     .console-card-primary {
         grid-column: span 1;
     }
+
+    [data-testid="stHorizontalBlock"] {
+        flex-direction: column !important;
+        gap: 1.5rem !important;
+    }
+
+    [data-testid="column"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1326,6 +1454,12 @@ hr {
     .match-reason,
     .detected-theme-chip {
         font-size: 0.62rem;
+    }
+
+    .stButton > button {
+        font-size: 0.78rem !important;
+        padding-left: 0.85rem !important;
+        padding-right: 0.85rem !important;
     }
 
     .intake-shell,

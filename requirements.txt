@@ -1,5 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-streamlit==1.44.1
+streamlit==1.58.0
 pandas==2.2.3
 scikit-learn==1.6.1
 faiss-cpu>=1.9.0

@@ -477,11 +477,8 @@ def diversify_recommendations(
     if results.empty or target_size <= 1:
         return results
 
-    score_col = _score_column(results)
     ranked = results.copy()
     ranked["_original_rank"] = range(len(ranked))
-    if score_col:
-        ranked.sort_values([score_col, "_original_rank"], ascending=[False, True], inplace=True)
 
     selected: list[int] = []
     artist_counts: dict[str, int] = {}

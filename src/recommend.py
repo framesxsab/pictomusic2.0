@@ -5,7 +5,7 @@ Image-to-music recommendation using CLIP embeddings, FAISS search, and mood re-r
 
 import logging
 import os
-import tempfile
+import io
 from pathlib import Path
 from typing import Any, Callable, List, Optional
 
@@ -27,6 +27,8 @@ from config import (
     MAX_IMAGE_PIXELS,
     MAX_TOKEN_LENGTH,
     MAX_UPLOAD_SIZE_BYTES,
+    METADATA_BACKFILL_LIMIT,
+    METADATA_BACKFILL_SCORE_PERCENTILE,
     MOOD_CONFIDENCE_THRESHOLD,
     MOOD_FETCH_MULTIPLIER,
     MOOD_RERANK_BOOST,
@@ -49,6 +51,7 @@ from embeddings import (
     generate_text_embeddings,
     load_or_generate_embeddings,
 )
+from image_context import analyze_image_context
 from preprocess import build_enhanced_description, run_preprocessing
 from ranking import (
     apply_hybrid_ranking,
@@ -95,6 +98,8 @@ class ImageMusicRecommender:
         self.last_mood_confidence: float = 0.0
         self.last_query_text: str = ""
         self.last_candidate_count: int = 0
+        self.last_image_context: dict = {}
+        self.last_backfill_count: int = 0
 
         self._load_models()
         self._load_dataset()
@@ -229,6 +234,14 @@ class ImageMusicRecommender:
         if mood_keywords:
             query_parts.append("music mood: " + ", ".join(mood_keywords[:8]))
 
+        image_context = getattr(self, "last_image_context", {}) or {}
+        context_labels = image_context.get("labels", [])
+        context_cues = image_context.get("music_cues", [])
+        if context_labels:
+            query_parts.append("image tone: " + ", ".join(context_labels[:5]))
+        if context_cues:
+            query_parts.append("tone cues: " + ", ".join(context_cues[:8]))
+
         preferred_genres = []
         seen_genres = set()
         for theme in self.last_detected_themes:
@@ -290,6 +303,69 @@ class ImageMusicRecommender:
         results.reset_index(drop=True, inplace=True)
         return results
 
+    def _metadata_backfill_candidates(
+        self,
+        existing_indices: set,
+        *,
+        mood_keywords: List[str],
+        preferred_language: str,
+        preferred_region: str,
+        score_floor: float,
+    ) -> pd.DataFrame:
+        """Add structured candidates when vector retrieval misses obvious intent matches."""
+        if self.music_df is None or METADATA_BACKFILL_LIMIT <= 0:
+            return pd.DataFrame()
+
+        preferred_language = str(preferred_language or "any").strip().lower()
+        preferred_region = str(preferred_region or "any").strip().lower()
+        mood_set = {str(mood).strip().lower() for mood in mood_keywords if str(mood).strip()}
+        has_language_pref = preferred_language != "any"
+        has_region_pref = preferred_region != "any"
+        if not has_language_pref and not has_region_pref and not mood_set:
+            return pd.DataFrame()
+
+        df = self.music_df
+        mask = pd.Series(True, index=df.index)
+        if has_language_pref and "language" in df.columns:
+            mask &= df["language"].fillna("").astype(str).str.lower().eq(preferred_language)
+        if has_region_pref and "region" in df.columns:
+            mask &= df["region"].fillna("").astype(str).str.lower().eq(preferred_region)
+        if mood_set and "mood_tags" in df.columns:
+            mask &= df["mood_tags"].fillna("").astype(str).str.lower().map(
+                lambda value: bool({tag.strip() for tag in value.split(",")} & mood_set)
+            )
+        if existing_indices:
+            mask &= ~df.index.isin(existing_indices)
+
+        backfill = df[mask].copy()
+        if backfill.empty:
+            return backfill
+
+        backfill["_has_preview"] = (
+            backfill["preview"].astype(str).str.startswith("http")
+            if "preview" in backfill.columns
+            else False
+        )
+        backfill["_catalog_year"] = pd.to_numeric(
+            backfill.get("catalog_year", 0), errors="coerce"
+        ).fillna(0)
+        backfill["_popularity"] = pd.to_numeric(
+            backfill.get("popularity", 0), errors="coerce"
+        ).fillna(0)
+        backfill.sort_values(
+            ["_has_preview", "_catalog_year", "_popularity"],
+            ascending=[False, False, False],
+            inplace=True,
+        )
+        backfill = backfill.head(METADATA_BACKFILL_LIMIT).copy()
+        backfill["visual_score"] = float(score_floor)
+        backfill["similarity_score"] = float(score_floor)
+        backfill["_retrieval_source"] = "metadata_backfill"
+        return backfill.drop(
+            columns=["_has_preview", "_catalog_year", "_popularity"],
+            errors="ignore",
+        )
+
     @property
     def is_ready(self) -> bool:
         return all([
@@ -336,7 +412,6 @@ class ImageMusicRecommender:
         if self.clip_model is None or self.processor is None:
             return None
 
-        tmp_path: Optional[str] = None
         try:
             if isinstance(image_source, Image.Image):
                 image = image_source.convert("RGB")
@@ -344,11 +419,7 @@ class ImageMusicRecommender:
             elif hasattr(image_source, "getvalue"):
                 image_bytes = image_source.getvalue()
                 validate_image_content(image_bytes)
-                suffix = Path(getattr(image_source, "name", "img.jpg")).suffix
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    tmp.write(image_bytes)
-                    tmp_path = tmp.name
-                image = Image.open(tmp_path).convert("RGB")
+                image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
             elif isinstance(image_source, str) and image_source.startswith("http"):
                 validated_url = validate_image_url(image_source)
@@ -363,22 +434,29 @@ class ImageMusicRecommender:
                         f"Remote image too large ({int(content_length)} bytes)"
                     )
 
-                downloaded = 0
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-                    for chunk in response.iter_content(chunk_size=HTTP_CHUNK_SIZE):
-                        downloaded += len(chunk)
-                        if downloaded > MAX_UPLOAD_SIZE_BYTES:
-                            raise ValueError(
-                                "Remote image exceeds size limit during download"
-                            )
-                        tmp.write(chunk)
-                    tmp_path = tmp.name
-                with open(tmp_path, "rb") as f:
-                    validate_image_content(f.read())
-                image = Image.open(tmp_path).convert("RGB")
+                downloaded = []
+                downloaded_size = 0
+                for chunk in response.iter_content(chunk_size=HTTP_CHUNK_SIZE):
+                    downloaded_size += len(chunk)
+                    if downloaded_size > MAX_UPLOAD_SIZE_BYTES:
+                        raise ValueError(
+                            "Remote image exceeds size limit during download"
+                        )
+                    downloaded.append(chunk)
+
+                image_bytes = b"".join(downloaded)
+                validate_image_content(image_bytes)
+                image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
             else:
                 image = Image.open(str(image_source)).convert("RGB")
+
+            context = analyze_image_context(image)
+            self.last_image_context = {
+                "labels": context.labels,
+                "music_cues": context.music_cues,
+                "metrics": context.metrics,
+            }
 
             return generate_image_embedding(
                 image, self.clip_model, self.processor, self.device
@@ -396,12 +474,6 @@ class ImageMusicRecommender:
         except Exception as e:
             logger.error("Error processing image: %s", e, exc_info=True)
             return None
-        finally:
-            if tmp_path and os.path.exists(tmp_path):
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
 
     def recommend(
         self,
@@ -421,15 +493,17 @@ class ImageMusicRecommender:
             logger.error("Recommender not fully initialized.")
             return pd.DataFrame()
 
-        img_emb = self._get_image_embedding(image_source)
-        if img_emb is None:
-            logger.error("Failed to process image.")
-            return pd.DataFrame()
-
         self.last_detected_themes = []  # Reset on each call
         self.last_mood_confidence = 0.0
         self.last_query_text = ""
         self.last_candidate_count = 0
+        self.last_image_context = {}
+        self.last_backfill_count = 0
+
+        img_emb = self._get_image_embedding(image_source)
+        if img_emb is None:
+            logger.error("Failed to process image.")
+            return pd.DataFrame()
 
         try:
             # 1. Zero-shot classify image into scene categories and mood keywords
@@ -477,6 +551,19 @@ class ImageMusicRecommender:
             raw_scores = distances[0].astype(float)
             results["visual_score"] = raw_scores
             results["similarity_score"] = raw_scores
+            results["_retrieval_source"] = "clip"
+
+            score_floor = float(np.percentile(raw_scores, METADATA_BACKFILL_SCORE_PERCENTILE))
+            backfill = self._metadata_backfill_candidates(
+                set(results.index),
+                mood_keywords=mood_keywords,
+                preferred_language=preferred_language,
+                preferred_region=preferred_region,
+                score_floor=score_floor,
+            )
+            self.last_backfill_count = int(len(backfill))
+            if not backfill.empty:
+                results = pd.concat([results, backfill], ignore_index=False)
 
             # Mood-aware re-ranking
             if mood_keywords:
@@ -544,7 +631,12 @@ class ImageMusicRecommender:
             # Return top_k after re-ranking
             if not show_scores:
                 results = results.drop(
-                    columns=["similarity_score", "visual_score", "hybrid_score"],
+                    columns=[
+                        "similarity_score",
+                        "visual_score",
+                        "hybrid_score",
+                        "_retrieval_source",
+                    ],
                     errors="ignore",
                 )
             return results.head(top_k).reset_index(drop=True)

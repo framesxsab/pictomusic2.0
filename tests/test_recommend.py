@@ -96,6 +96,7 @@ class TestVisualQuery:
 
         recommender = object.__new__(ImageMusicRecommender)
         recommender.last_detected_themes = ["wedding and ceremony", "festival and lights"]
+        recommender.last_image_context = {}
 
         query = recommender._build_visual_music_query(
             ["happy", "romantic", "danceable", "energetic"]
@@ -104,6 +105,69 @@ class TestVisualQuery:
         assert query.startswith("visual scene: wedding and ceremony, festival and lights")
         assert "music mood: happy, romantic, danceable, energetic" in query
         assert "preferred styles: bollywood, punjabi, filmi, folk" in query
+
+    def test_visual_music_query_includes_lightweight_image_context(self):
+        from recommend import ImageMusicRecommender
+
+        recommender = object.__new__(ImageMusicRecommender)
+        recommender.last_detected_themes = []
+        recommender.last_image_context = {
+            "labels": ["warm color temperature", "bright lighting"],
+            "music_cues": ["warm", "romantic", "upbeat"],
+        }
+
+        query = recommender._build_visual_music_query(["happy"])
+
+        assert "image tone: warm color temperature, bright lighting" in query
+        assert "tone cues: warm, romantic, upbeat" in query
+
+
+class TestImageContext:
+    def test_analyze_image_context_extracts_warm_bright_cues(self):
+        Image = pytest.importorskip("PIL.Image")
+        from image_context import analyze_image_context
+
+        image = Image.new("RGB", (64, 64), color=(250, 190, 70))
+
+        context = analyze_image_context(image)
+
+        assert "warm color temperature" in context.labels
+        assert "bright lighting" in context.labels
+        assert "romantic" in context.music_cues
+        assert context.metrics["brightness"] > 0.6
+
+
+class TestMetadataBackfill:
+    def test_metadata_backfill_prefers_preview_matching_intent(self):
+        from recommend import ImageMusicRecommender
+
+        recommender = object.__new__(ImageMusicRecommender)
+        recommender.music_df = pd.DataFrame(
+            {
+                "name": ["Existing", "Match Preview", "Match No Preview", "Wrong Mood"],
+                "artist": ["A", "B", "C", "D"],
+                "language": ["hi", "hi", "hi", "hi"],
+                "region": ["bollywood", "bollywood", "bollywood", "bollywood"],
+                "mood_tags": ["romantic", "romantic,calm", "romantic", "party"],
+                "preview": ["", "https://p/preview.mp3", "", "https://p/wrong.mp3"],
+                "catalog_year": [2026, 2026, 2025, 2026],
+                "popularity": [90, 80, 95, 100],
+            }
+        )
+
+        backfill = recommender._metadata_backfill_candidates(
+            {0},
+            mood_keywords=["romantic"],
+            preferred_language="hi",
+            preferred_region="bollywood",
+            score_floor=0.42,
+        )
+
+        assert list(backfill["name"])[:2] == ["Match Preview", "Match No Preview"]
+        assert "Existing" not in set(backfill["name"])
+        assert "Wrong Mood" not in set(backfill["name"])
+        assert backfill.iloc[0]["similarity_score"] == 0.42
+        assert backfill.iloc[0]["_retrieval_source"] == "metadata_backfill"
 
 
 class TestEmbeddingsIO:
@@ -161,6 +225,8 @@ class TestUploadedImageWorkflow:
         result = recommender._get_image_embedding(make_uploaded_image("PNG"))
 
         assert result is expected
+        assert "labels" in recommender.last_image_context
+        assert "music_cues" in recommender.last_image_context
 
     def test_uploaded_image_embedding_path_rejects_corrupt_image_without_crash(self):
         from recommend import ImageMusicRecommender

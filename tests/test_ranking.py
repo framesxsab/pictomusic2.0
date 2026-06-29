@@ -338,3 +338,22 @@ def test_diversify_recommendations_balances_visible_artist_and_source():
     visible = diversified.head(4)
 
     assert list(visible["name"]) == ["A1", "A2", "B1", "C1"]
+
+
+def test_diversify_recommendations_preserves_preview_promoted_order():
+    results = pd.DataFrame(
+        {
+            "name": ["Important", "Preview One", "Preview Two", "Close"],
+            "artist": ["A", "B", "C", "D"],
+            "source": ["s1", "s2", "s3", "s4"],
+            "hybrid_score": [0.94, 0.86, 0.84, 0.91],
+            "preview": ["", "https://p/one.mp3", "https://p/two.mp3", ""],
+        }
+    )
+
+    promoted = promote_preview_recommendations(results, target_size=3)
+    diversified = diversify_recommendations(promoted, target_size=3)
+    visible = diversified.head(3)
+
+    assert list(visible["name"]) == ["Important", "Preview One", "Preview Two"]
+    assert visible["preview"].astype(str).str.startswith("http").sum() == 2

@@ -129,6 +129,99 @@ def test_instructional_step_ui_is_not_rendered():
         assert removed_marker not in style_text
 
 
+def test_mobile_upload_has_gallery_type_filter_and_camera_path():
+    app_text = (PROJECT_ROOT / "src" / "app.py").read_text(encoding="utf-8")
+
+    assert "st.camera_input" in app_text
+    assert '("Gallery", "Camera")' in app_text
+    assert 'type=["jpg", "jpeg", "png", "webp", "heic", "heif"]' in app_text
+    assert "accept_multiple_files=False" in app_text
+
+
+def test_sidebar_controls_are_visible_by_default():
+    app_text = (PROJECT_ROOT / "src" / "app.py").read_text(encoding="utf-8")
+    sidebar_text = (PROJECT_ROOT / "src" / "ui" / "sidebar.py").read_text(encoding="utf-8")
+
+    assert 'initial_sidebar_state="expanded"' in app_text
+    assert 'initial_sidebar_state="collapsed"' not in app_text
+    for control in [
+        "Image source",
+        "Language",
+        "Region",
+        "Prioritize newer releases",
+        "Only songs with audio previews",
+        "Prioritize Indian music",
+        "Results",
+    ]:
+        assert control in sidebar_text
+
+
+def test_file_upload_dropzone_text_cannot_overlap_button():
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    assert '[data-testid="stFileUploadDropzone"]' in style_text
+    assert '[data-testid="stFileUploaderDropzone"]' in style_text
+    assert '[data-testid="stFileUploaderDropzoneInstructions"]' in style_text
+    assert "flex-direction: column !important;" in style_text
+    assert "align-items: center !important;" in style_text
+    assert "min-height: 136px !important;" in style_text
+    assert "white-space: normal !important;" in style_text
+    assert "overflow-wrap: anywhere !important;" in style_text
+    assert "min-height: 2.7rem !important;" in style_text
+    assert '[data-testid="stIconMaterial"]' in style_text
+    assert 'button span:first-child:not(:last-child)' in style_text
+    assert "width: 156px !important;" in style_text
+    assert "gap: 0 !important;" in style_text
+    assert "white-space: nowrap !important;" in style_text
+    assert '[data-testid="stFileUploaderFile"]' in style_text
+    assert '[data-testid="stFileUploader"] button[kind="secondary"]' not in style_text
+    assert '[data-testid="stBaseButton-secondary"] {' not in style_text
+    assert '[data-testid="stBaseButton-secondary"]:hover' not in style_text
+
+
+def test_selected_gallery_upload_uses_app_preview_and_clear_button():
+    app_text = (PROJECT_ROOT / "src" / "app.py").read_text(encoding="utf-8")
+
+    assert "def _hide_native_gallery_uploader" in app_text
+    assert "def _reset_upload_widget" in app_text
+    assert 'key=f"gallery_upload_{st.session_state[\'gallery_upload_nonce\']}"' in app_text
+    assert 'key=f"camera_upload_{st.session_state[\'camera_upload_nonce\']}"' in app_text
+    assert 'st.button("Clear image"' in app_text
+    assert "_reset_upload_widget(upload_method)" in app_text
+
+
+def test_streamlit_button_labels_do_not_wrap_mid_word():
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    assert ".stButton > button p" in style_text
+    assert "word-break: keep-all !important;" in style_text
+    assert "overflow-wrap: normal !important;" in style_text
+    assert "font-size: 0.78rem !important;" in style_text
+
+
+def test_upload_method_selector_is_equal_width_on_mobile():
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    assert '.stRadio [role="radiogroup"]' in style_text
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr)) !important;" in style_text
+    assert "min-height: 2.75rem !important;" in style_text
+    assert "margin-bottom: 0.85rem !important;" in style_text
+
+
+def test_sidebar_can_render_direct_app_link_for_browser_wrapper_fallback():
+    sidebar_text = (PROJECT_ROOT / "src" / "ui" / "sidebar.py").read_text(encoding="utf-8")
+    config_text = (PROJECT_ROOT / "src" / "config.py").read_text(encoding="utf-8")
+    docker_text = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    assert "PICTOMUSIC_PUBLIC_APP_URL" in config_text
+    assert "PUBLIC_APP_URL" in sidebar_text
+    assert "Open direct app" in sidebar_text
+    assert "rel=\"noopener noreferrer\"" in sidebar_text
+    assert 'f"""' not in sidebar_text
+    assert "            </div>" not in sidebar_text
+    assert "https://fxsab-pictomusicu.hf.space" in docker_text
+
+
 def test_styles_use_gold_silver_palette_tokens():
     style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
 

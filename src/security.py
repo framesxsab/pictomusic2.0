@@ -48,8 +48,59 @@ HEIF_BRANDS = {
     b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis",
     b"mif1", b"msf1",
 }
+INFERRED_IMAGE_EXTENSIONS = {
+    "jpeg": ".jpg",
+    "png": ".png",
+    "webp": ".webp",
+    "heif": ".heic",
+}
 JPEG_QUALITY_STEPS = (92, 86, 80, 74, 68, 60)
 JPEG_RESIZE_STEPS = (1.0, 0.85, 0.72, 0.60, 0.50, 0.42, 0.35)
+
+
+
+def patch_urllib3_dns_pinning() -> None:
+    """Patch urllib3 to pin resolved IP addresses and block private IPs.
+
+    This mitigates DNS rebinding / SSRF attacks.
+    """
+    try:
+        import urllib3.util.connection as urllib3_connection
+
+        orig_create_connection = urllib3_connection.create_connection
+
+        def safe_create_connection(address, *args, **kwargs):
+            host, port = address
+            try:
+                infos = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+                if not infos:
+                    raise socket.error("DNS resolution returned no addresses.")
+
+                # Check resolved IPs
+                for family, socktype, proto, canonname, sockaddr in infos:
+                    ip = sockaddr[0]
+                    for prefix in _BLOCKED_IP_PREFIXES:
+                        if ip.startswith(prefix):
+                            raise socket.error(
+                                f"Access to private/internal IP address {ip} is blocked."
+                            )
+
+                # Enforce direct connection to the resolved IP to prevent DNS rebinding
+                resolved_ip = infos[0][4][0]
+                return orig_create_connection((resolved_ip, port), *args, **kwargs)
+            except Exception as e:
+                if isinstance(e, socket.error):
+                    raise e
+                raise socket.error(f"Connection validation failed: {e}")
+
+        urllib3_connection.create_connection = safe_create_connection
+        logging.info("urllib3 DNS pinning patch applied successfully.")
+    except Exception as exc:
+        logging.warning("Could not apply urllib3 DNS pinning patch: %s", exc)
+
+
+# Apply patch immediately on module load
+patch_urllib3_dns_pinning()
 
 
 def escape_html(text: str) -> str:
@@ -106,6 +157,48 @@ def build_uploaded_image_cache_key(filename: str, image_bytes: bytes) -> str:
     return f"upload_{safe_name}_{len(image_bytes)}_{digest}"
 
 
+def read_uploaded_image_bytes(file_obj) -> bytes:
+    """Read Streamlit upload bytes across browser/session object variants."""
+    if file_obj is None:
+        raise ValueError("No file provided.")
+
+    image_bytes = None
+    read_error = None
+    try:
+        getvalue = getattr(file_obj, "getvalue", None)
+        if callable(getvalue):
+            candidate = getvalue()
+            if isinstance(candidate, (bytes, bytearray, memoryview)):
+                image_bytes = candidate
+    except Exception as exc:
+        read_error = exc
+
+    if image_bytes is None:
+        try:
+            if hasattr(file_obj, "seek"):
+                file_obj.seek(0)
+            image_bytes = file_obj.read()
+        except Exception as exc:
+            read_error = exc
+
+    try:
+        if hasattr(file_obj, "seek"):
+            file_obj.seek(0)
+    except Exception:
+        pass
+
+    if image_bytes is None and read_error is not None:
+        raise ValueError(f"Could not read uploaded file: {read_error}") from read_error
+
+    if isinstance(image_bytes, memoryview):
+        image_bytes = image_bytes.tobytes()
+    if isinstance(image_bytes, bytearray):
+        image_bytes = bytes(image_bytes)
+    if not isinstance(image_bytes, bytes):
+        raise ValueError("Could not read uploaded file bytes.")
+    return image_bytes
+
+
 def validate_uploaded_image_bytes(filename: str, image_bytes: bytes) -> None:
     """Validate uploaded image bytes. Raises ValueError on failure."""
     if image_bytes is None:
@@ -123,6 +216,8 @@ def validate_uploaded_image_bytes(filename: str, image_bytes: bytes) -> None:
         raise ValueError("Uploaded file is empty.")
 
     ext = Path(filename or "").suffix.lower()
+    if not ext:
+        ext = infer_image_extension(image_bytes)
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         raise ValueError(
             f"File extension '{ext}' is not allowed. "
@@ -144,6 +239,20 @@ def validate_uploaded_image_bytes(filename: str, image_bytes: bytes) -> None:
         )
 
     validate_image_content(image_bytes)
+
+
+def infer_image_extension(image_bytes: bytes) -> str:
+    """Infer a safe upload extension from image container bytes."""
+    header = image_bytes[:64]
+    if header.startswith(b"\xff\xd8\xff"):
+        return INFERRED_IMAGE_EXTENSIONS["jpeg"]
+    if header.startswith(b"\x89PNG"):
+        return INFERRED_IMAGE_EXTENSIONS["png"]
+    if header.startswith(b"RIFF") and header[8:12] == b"WEBP":
+        return INFERRED_IMAGE_EXTENSIONS["webp"]
+    if is_heif_container(header):
+        return INFERRED_IMAGE_EXTENSIONS["heif"]
+    return ""
 
 
 def has_supported_image_header(image_bytes: bytes, extension: str = "") -> bool:
@@ -227,8 +336,11 @@ def prepare_uploaded_image_bytes(filename: str, image_bytes: bytes) -> tuple[str
     """
     validate_uploaded_image_bytes(filename, image_bytes)
 
-    ext = Path(filename or "").suffix.lower()
-    safe_name = sanitize_filename(filename or "upload")
+    ext = Path(filename or "").suffix.lower() or infer_image_extension(image_bytes)
+    raw_name = filename or f"mobile_upload{ext or '.jpg'}"
+    if not Path(raw_name).suffix and ext:
+        raw_name = f"{raw_name}{ext}"
+    safe_name = sanitize_filename(raw_name)
     if ext not in HEIF_IMAGE_EXTENSIONS:
         return safe_name, image_bytes, False
 
@@ -259,16 +371,7 @@ def prepare_uploaded_image_bytes(filename: str, image_bytes: bytes) -> tuple[str
 
 def validate_uploaded_file(file_obj) -> None:
     """Validate an uploaded file-like object. Raises ValueError on failure."""
-    if file_obj is None:
-        raise ValueError("No file provided.")
-
-    try:
-        file_obj.seek(0)
-        image_bytes = file_obj.read()
-        file_obj.seek(0)
-    except Exception as exc:
-        raise ValueError(f"Could not read uploaded file: {exc}") from exc
-
+    image_bytes = read_uploaded_image_bytes(file_obj)
     validate_uploaded_image_bytes(getattr(file_obj, "name", ""), image_bytes)
 
 

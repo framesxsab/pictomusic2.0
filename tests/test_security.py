@@ -15,7 +15,9 @@ from security import (
     encode_jpeg_under_size_limit,
     escape_html,
     has_supported_image_header,
+    infer_image_extension,
     prepare_uploaded_image_bytes,
+    read_uploaded_image_bytes,
     sanitize_filename,
     validate_image_url,
     validate_uploaded_file,
@@ -164,8 +166,39 @@ class TestValidateUploadedFile:
         validate_uploaded_file(file)  # Should not raise
         assert file.tell() == 0
 
+    def test_upload_reader_accepts_getvalue_only_object(self):
+        class GetValueOnlyUpload:
+            name = "mobile.png"
+
+            def getvalue(self):
+                return bytearray(VALID_PNG_BYTES)
+
+        assert read_uploaded_image_bytes(GetValueOnlyUpload()) == VALID_PNG_BYTES
+
+    def test_upload_reader_rewinds_file_like_object(self):
+        file = io.BytesIO(VALID_PNG_BYTES)
+        file.name = "photo.png"
+        file.seek(4)
+
+        assert read_uploaded_image_bytes(file) == VALID_PNG_BYTES
+        assert file.tell() == 0
+
     def test_valid_png_bytes(self):
         validate_uploaded_image_bytes("photo.png", VALID_PNG_BYTES)
+
+    def test_extensionless_mobile_png_upload_is_accepted(self):
+        validate_uploaded_image_bytes("blob", VALID_PNG_BYTES)
+        prepared_name, prepared_bytes, converted = prepare_uploaded_image_bytes(
+            "blob",
+            VALID_PNG_BYTES,
+        )
+
+        assert prepared_name == "blob.png"
+        assert prepared_bytes == VALID_PNG_BYTES
+        assert converted is False
+
+    def test_infers_mobile_image_extension_from_bytes(self):
+        assert infer_image_extension(VALID_PNG_BYTES) == ".png"
 
     def test_heic_header_is_supported_for_mobile_uploads(self):
         heic_bytes = make_heic_bytes()
@@ -220,3 +253,13 @@ class TestValidateUploadedFile:
         file.read.return_value = b"\xff\xd8\xff" + b"\x00" * (11 * 1024 * 1024)
         with pytest.raises(ValueError, match="exceeds"):
             validate_uploaded_file(file)
+
+
+class TestDnsPinning:
+    def test_safe_create_connection_blocks_private_ip(self):
+        import urllib3.util.connection as urllib3_connection
+        with patch("socket.getaddrinfo", return_value=[(None, None, None, "", ("127.0.0.1", 80))]):
+            with pytest.raises(Exception) as excinfo:
+                urllib3_connection.create_connection(("example.com", 80))
+            assert "blocked" in str(excinfo.value)
+

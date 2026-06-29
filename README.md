@@ -118,6 +118,14 @@ The expected Hugging Face remote in this checkout is:
 https://huggingface.co/spaces/fxsab/pictomusicU
 ```
 
+For Brave, share the direct Space app URL when possible:
+
+```text
+https://fxsab-pictomusicu.hf.space
+```
+
+The Hugging Face repository page embeds the app in an iframe, and Brave Shields can block embedded resources or camera access in that wrapper.
+
 ## Embedding Cache
 
 The current cache is generated with `openai/clip-vit-base-patch32` and stored as `song_embeddings_fp16.npy`. The companion manifest records:
@@ -137,3 +145,32 @@ PICTOMUSIC_STRICT_EMBEDDING_MANIFEST=1
 ## Fine-Tuning Plan
 
 See [docs/recommender_finetuning_plan.md](docs/recommender_finetuning_plan.md) for staged improvements to retrieval quality without breaking the current 91K-song system.
+
+## 📖 How to Use & User Guide
+
+### 1. Navigating the UI
+* **Desktop View:** The interface is divided into two main panels: the **Image Desk** (left column for uploading images, selecting parameters, and starting analysis) and the **Output Desk** (right column for results, statistics, and playback).
+* **Mobile View:** On mobile screens, the layout automatically stacks vertically. The **Image Desk** is displayed at the top, and the **Output Desk** renders directly below it. 
+  * *Note:* The sidebar containing listening filters is collapsed by default on mobile. Tap the small dark arrow button (`>`) at the top left of the screen to expand it, adjust settings, and collapse it (`<`) to return to the main dashboard.
+
+### 2. Choosing a Visual Input
+You can provide an image in one of three ways:
+1. **Gallery Upload:** Select "Gallery" under the "Upload Image" option and browse or drag a file. We accept PNG, JPG, WEBP, and HEIC/HEIF files (common on mobile phones, which are automatically normalized to JPEG).
+2. **Camera Input:** Switch to the "Camera" tab to capture a live photo directly using your phone or web camera.
+3. **Image URL:** Switch to the "Image URL" tab and paste any public URL pointing directly to an image. Tap "Use sample image" to quickly run a test with our demo picture.
+
+### 3. Tuning the Recommendations (Sidebar)
+Before clicking **"Analyze image"**, open the sidebar to customize your music set:
+* **Language:** Match your image to a specific language (e.g. Hindi, Tamil, Telugu, Punjabi, Bengali, Marathi, Gujarati, Odia, Bhojpuri, Haryanvi) or choose **Any**.
+* **Region:** Boost specific regional music styles (e.g. Bollywood, South Indian, Punjabi, Indie).
+* **Release Recency:** Toggle "Prioritize newer releases" to prefer fresh tracks.
+* **Audio Previews:** Toggle "Only songs with audio previews" to exclude tracks without playable audio clips.
+* **Results Count:** Select how many tracks to generate (5 to 25).
+
+### 4. Exploring the Output Set
+After clicking **"Analyze image"**, the engine will process the visual tone, scene, and mood. The results appear in the **Output Desk**:
+* **Match Confidence:** Shows how well the track matches your visual (Excellent, Strong, Good, or Possible match).
+* **Match Reasons:** Displays badges explaining why the track matched (e.g. *Visual fit*, *Mood aligned*).
+* **Playable Previews:** If a 30-second audio clip is available, you can play it directly in the browser.
+* **Fallback Links:** If a preview is unavailable, quick links to search or open the track on **YouTube** and **Spotify** are rendered.
+

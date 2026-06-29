@@ -1,8 +1,10 @@
 """PictoMusic Sidebar."""
 
+from html import escape
+
 import streamlit as st
 
-from config import APP_TITLE, LANGUAGE_DISPLAY_MAP
+from config import APP_TITLE, LANGUAGE_DISPLAY_MAP, PUBLIC_APP_URL
 
 
 REGION_OPTIONS = {
@@ -30,17 +32,27 @@ def _language_options() -> dict[str, str]:
 
 def render_sidebar() -> dict:
     """Render the sidebar and return retrieval preferences."""
+    direct_app_link = ""
+    if PUBLIC_APP_URL:
+        direct_url = escape(PUBLIC_APP_URL, quote=True)
+        direct_app_link = (
+            f'<br><br><a href="{direct_url}" target="_blank" '
+            'rel="noopener noreferrer">Open direct app</a>'
+        )
+
     with st.sidebar:
         st.markdown(
-            f"""
-            <div class="sidebar-brand">
-                <div class="brand-mark" aria-hidden="true">PM</div>
-                <div class="brand-copy">
-                    <div class="brand-title">{APP_TITLE}</div>
-                    <div class="brand-subtitle">Music intelligence</div>
-                </div>
-            </div>
-            """,
+            "\n".join(
+                [
+                    '<div class="sidebar-brand">',
+                    '<div class="brand-mark" aria-hidden="true">PM</div>',
+                    '<div class="brand-copy">',
+                    f'<div class="brand-title">{escape(APP_TITLE)}</div>',
+                    '<div class="brand-subtitle">Music intelligence</div>',
+                    "</div>",
+                    "</div>",
+                ]
+            ),
             unsafe_allow_html=True,
         )
 
@@ -67,18 +79,21 @@ def render_sidebar() -> dict:
         st.markdown("---")
 
         st.markdown(
-            """
-            <div class="sidebar-note">
-                <div class="sidebar-note-label">Listening profile</div>
-                <div class="sidebar-note-copy">
-                    Balance language, region, freshness, and playable previews.
-                    <br><br>
-                    <span>
-                        Built for Bollywood, Punjabi, Tamil, Telugu, Bengali, Marathi, Gujarati, Bhojpuri, and more.
-                    </span>
-                </div>
-            </div>
-            """,
+            "\n".join(
+                [
+                    '<div class="sidebar-note">',
+                    '<div class="sidebar-note-label">Listening profile</div>',
+                    '<div class="sidebar-note-copy">',
+                    "Balance language, region, freshness, and playable previews.",
+                    "<br><br>",
+                    "<span>",
+                    "Built for Bollywood, Punjabi, Tamil, Telugu, Bengali, Marathi, Gujarati, Bhojpuri, and more.",
+                    "</span>",
+                    direct_app_link,
+                    "</div>",
+                    "</div>",
+                ]
+            ),
             unsafe_allow_html=True,
         )
 

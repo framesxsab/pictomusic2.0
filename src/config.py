@@ -193,6 +193,7 @@ APP_TITLE = "PictoMusic 2.0"
 APP_ICON = "\U0001f3b5"
 APP_SUBTITLE = "A focused music desk for Indian moods, languages, regions, and visual scenes"
 APP_VERSION_TAG = "2026 India Edition"
+PUBLIC_APP_URL = os.getenv("PICTOMUSIC_PUBLIC_APP_URL", "").strip()
 HERO_TITLE = "PictoMusic<br>Studio"
 DEMO_IMAGE_URL = "https://images.unsplash.com/photo-1764286954620-28029fbae9b6?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&w=640"
 
@@ -277,6 +278,10 @@ MOOD_SIMILARITY_THRESHOLD = float(os.getenv("PICTOMUSIC_MOOD_SIM_THRESHOLD", "0.
 MOOD_TOP_N = int(os.getenv("PICTOMUSIC_MOOD_TOP_N", "3"))
 MOOD_FETCH_MULTIPLIER = int(os.getenv("PICTOMUSIC_MOOD_FETCH_MULT", "3"))
 SCENE_GENRE_BOOST = float(os.getenv("PICTOMUSIC_SCENE_GENRE_BOOST", "0.08"))
+METADATA_BACKFILL_LIMIT = int(os.getenv("PICTOMUSIC_METADATA_BACKFILL_LIMIT", "500"))
+METADATA_BACKFILL_SCORE_PERCENTILE = float(
+    os.getenv("PICTOMUSIC_METADATA_BACKFILL_SCORE_PERCENTILE", "60")
+)
 HTTP_CHUNK_SIZE = 8192
 
 # --- External service URLs ---

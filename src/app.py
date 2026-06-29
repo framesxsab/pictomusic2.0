@@ -25,6 +25,7 @@ from security import (
     RateLimiter,
     build_uploaded_image_cache_key,
     prepare_uploaded_image_bytes,
+    read_uploaded_image_bytes,
     validate_image_content,
     validate_image_url,
 )
@@ -48,7 +49,7 @@ st.set_page_config(
     page_title=f"{APP_TITLE} - AI Music Discovery",
     page_icon=APP_ICON,
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 st.markdown(get_global_css(), unsafe_allow_html=True)
@@ -74,6 +75,7 @@ def _clear_results() -> None:
     st.session_state.pop("show_results", None)
     st.session_state.pop("detected_themes", None)
     st.session_state.pop("search_context", None)
+    st.session_state.pop("empty_recommendation_error", None)
 
 
 def _describe_image_bytes(image_bytes: bytes) -> str:
@@ -111,6 +113,77 @@ def _cache_invalid_image(cache_key: str, message: str) -> None:
     st.session_state["cached_image_detail"] = None
     st.session_state["cached_image_file_name"] = None
     st.session_state["cached_image_source_label"] = None
+
+
+def _accept_uploaded_image(active_file, default_name: str, source_label: str) -> None:
+    uploaded_name = getattr(active_file, "name", "") or default_name
+    try:
+        uploaded_bytes = read_uploaded_image_bytes(active_file)
+    except ValueError as exc:
+        _cache_invalid_image(f"upload_read_error_{uploaded_name}", str(exc))
+        return
+
+    cache_key = build_uploaded_image_cache_key(uploaded_name, uploaded_bytes)
+    if st.session_state.get("cached_file_key") == cache_key:
+        return
+
+    try:
+        prepared_name, prepared_bytes, was_converted = prepare_uploaded_image_bytes(
+            uploaded_name,
+            uploaded_bytes,
+        )
+        label = source_label
+        if uploaded_name:
+            label = f"{source_label}: {uploaded_name}"
+        if was_converted:
+            label = f"{label} converted to JPEG"
+        _cache_valid_image(
+            cache_key,
+            prepared_bytes,
+            label,
+            prepared_name,
+        )
+    except ValueError as exc:
+        _cache_invalid_image(cache_key, str(exc))
+
+
+def _render_cached_upload_preview(fallback_name: str) -> tuple[object, str]:
+    if st.session_state.get("cached_file_error"):
+        st.error(f"Image validation failed: {st.session_state['cached_file_error']}")
+        return None, ""
+    if st.session_state.get("cached_image_bytes"):
+        st.image(st.session_state["cached_image_bytes"], use_container_width=True)
+        image_source = io.BytesIO(st.session_state["cached_image_bytes"])
+        image_source.name = st.session_state.get("cached_image_file_name") or fallback_name
+        image_detail = st.session_state.get("cached_image_detail", "Validated image")
+        render_image_ready_panel(
+            st.session_state.get("cached_image_source_label", "Uploaded image"),
+            image_detail,
+            format_file_size(len(st.session_state["cached_image_bytes"])),
+        )
+        return image_source, image_detail
+    return None, ""
+
+
+def _hide_native_gallery_uploader() -> None:
+    st.markdown(
+        """
+<style>
+[data-testid="stFileUploader"] {
+    display: none !important;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def _reset_upload_widget(upload_method: str) -> None:
+    nonce_key = "camera_upload_nonce" if upload_method == "Camera" else "gallery_upload_nonce"
+    st.session_state[nonce_key] = int(st.session_state.get(nonce_key, 0)) + 1
+    _clear_cached_image()
+    _clear_results()
+    st.rerun()
 
 
 def _download_url_image(image_url: str) -> bytes:
@@ -155,49 +228,42 @@ with col_left:
         _clear_results()
 
     if image_source_option == "Upload Image":
+        st.session_state.setdefault("gallery_upload_nonce", 0)
+        st.session_state.setdefault("camera_upload_nonce", 0)
         render_intake_panel_header(
             "Upload a frame",
-            "Use a gallery photo, poster, or celebration image. Mobile HEIC photos are accepted and converted before analysis.",
+            "Use a gallery photo, poster, camera shot, or celebration image. Mobile HEIC photos are accepted and converted before analysis.",
         )
-        uploaded_file = st.file_uploader(
-            "Drop your image here or browse from your phone gallery",
+        upload_method = st.radio(
+            "Upload method",
+            ("Gallery", "Camera"),
+            horizontal=True,
             label_visibility="collapsed",
         )
-        active_file = uploaded_file
-        if active_file is not None:
-            uploaded_bytes = active_file.getvalue()
-            uploaded_name = getattr(active_file, "name", "") or "mobile_upload.jpg"
-            cache_key = build_uploaded_image_cache_key(uploaded_name, uploaded_bytes)
-            if st.session_state.get("cached_file_key") != cache_key:
-                try:
-                    prepared_name, prepared_bytes, was_converted = prepare_uploaded_image_bytes(
-                        uploaded_name,
-                        uploaded_bytes,
-                    )
-                    source_label = uploaded_name or "Uploaded image"
-                    if was_converted:
-                        source_label = f"{source_label} converted to JPEG"
-                    _cache_valid_image(
-                        cache_key,
-                        prepared_bytes,
-                        source_label,
-                        prepared_name,
-                    )
-                except ValueError as exc:
-                    _cache_invalid_image(cache_key, str(exc))
+        active_file = None
+        if upload_method == "Gallery":
+            active_file = st.file_uploader(
+                "Choose an image from your phone gallery",
+                type=["jpg", "jpeg", "png", "webp", "heic", "heif"],
+                accept_multiple_files=False,
+                label_visibility="collapsed",
+                key=f"gallery_upload_{st.session_state['gallery_upload_nonce']}",
+            )
+        else:
+            active_file = st.camera_input(
+                "Take a photo",
+                label_visibility="collapsed",
+                key=f"camera_upload_{st.session_state['camera_upload_nonce']}",
+            )
 
-            if st.session_state.get("cached_file_error"):
-                st.error(f"Image validation failed: {st.session_state['cached_file_error']}")
-            elif st.session_state.get("cached_image_bytes"):
-                st.image(st.session_state["cached_image_bytes"], use_container_width=True)
-                image_source = io.BytesIO(st.session_state["cached_image_bytes"])
-                image_source.name = st.session_state.get("cached_image_file_name") or uploaded_name
-                image_detail = st.session_state.get("cached_image_detail", "Validated image")
-                render_image_ready_panel(
-                    st.session_state.get("cached_image_source_label", "Uploaded image"),
-                    image_detail,
-                    format_file_size(len(st.session_state["cached_image_bytes"])),
-                )
+        if active_file is not None:
+            default_name = "camera_capture.jpg" if upload_method == "Camera" else "mobile_upload.jpg"
+            _accept_uploaded_image(active_file, default_name, upload_method)
+            if upload_method == "Gallery" and not st.session_state.get("cached_file_error"):
+                _hide_native_gallery_uploader()
+            image_source, image_detail = _render_cached_upload_preview(default_name)
+            if st.button("Clear image", use_container_width=True):
+                _reset_upload_widget(upload_method)
         else:
             # Clear cache when file is removed
             _clear_cached_image()
@@ -350,32 +416,43 @@ with col_left:
                             "candidate_count": getattr(recommender, "last_candidate_count", 0),
                             "mood_confidence": getattr(recommender, "last_mood_confidence", 0.0),
                         }
+                        st.session_state["empty_recommendation_error"] = None
                         stage_placeholder.empty()
                     else:
                         stage_placeholder.empty()
-                        render_empty_result_guidance(
-                            "No tracks survived the current filters.",
-                            [
+                        st.session_state["show_results"] = False
+                        st.session_state["empty_recommendation_error"] = {
+                            "message": "No tracks survived the current filters.",
+                            "suggestions": [
                                 "Switch language or region to Any.",
                                 "Turn off preview-only mode.",
                                 "Try an image with a clearer face, scene, or celebration cue.",
                             ],
-                        )
+                        }
                 else:
                     stage_placeholder.empty()
                     logging.error(
                         "Recommendation engine offline. Missing components: %s",
                         ", ".join(recommender.missing_components()),
                     )
-                    st.error(
-                        "Recommendation engine offline. A required music search component is missing."
-                    )
+                    st.session_state["show_results"] = False
+                    st.session_state["empty_recommendation_error"] = {
+                        "message": "Recommendation engine offline.",
+                        "suggestions": [
+                            "A required music search component is missing.",
+                            f"Missing components: {', '.join(recommender.missing_components())}",
+                        ],
+                    }
             except Exception as exc:
                 logging.error("Recommender error: %s", exc, exc_info=True)
-                st.error(
-                    "An error occurred while processing your request. "
-                    "Please try again or use a different image."
-                )
+                st.session_state["show_results"] = False
+                st.session_state["empty_recommendation_error"] = {
+                    "message": "An error occurred while processing your request.",
+                    "suggestions": [
+                        "Please try again or use a different image.",
+                        str(exc),
+                    ],
+                }
 
 
 with col_right:
@@ -390,5 +467,8 @@ with col_right:
             st.session_state["recommendations"],
             st.session_state.get("search_context"),
         )
+    elif st.session_state.get("empty_recommendation_error"):
+        err = st.session_state["empty_recommendation_error"]
+        render_empty_result_guidance(err["message"], err["suggestions"])
     else:
         render_dashboard_welcome()
