@@ -71,9 +71,14 @@ select,
     font-synthesis: none;
 }
 
-#MainMenu, header[data-testid="stHeader"], footer,
-[data-testid="stToolbar"], .stDeployButton {
+#MainMenu, footer, [data-testid="stToolbar"], .stDeployButton, [data-testid="stConnectionStatus"] {
     display: none !important;
+}
+
+header[data-testid="stHeader"] {
+    background-color: transparent !important;
+    background: transparent !important;
+    height: 3.75rem !important;
 }
 
 .block-container {
@@ -999,6 +1004,10 @@ section[data-testid="stSidebar"] hr {
     gap: 0.35rem !important;
 }
 
+.stRadio [data-baseweb="radio"] > div:first-child {
+    display: none !important;
+}
+
 .stRadio > label {
     display: none !important;
 }
@@ -1610,6 +1619,55 @@ hr {
 .song-card audio::-webkit-media-controls-panel {
     background-color: #090b14 !important;
     color: var(--text-primary) !important;
+}
+
+/* Sidebar collapsed expand control styling */
+div[data-testid="collapsedControl"] {
+    background-color: rgba(18, 19, 23, 0.95) !important;
+    border: 1px solid rgba(217, 224, 234, 0.28) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px rgba(241, 210, 122, 0.16) !important;
+    z-index: 999999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 42px !important;
+    height: 42px !important;
+    top: 0.85rem !important;
+    left: 0.85rem !important;
+    cursor: pointer !important;
+    transition: border-color 0.2s ease, background-color 0.2s ease !important;
+}
+
+div[data-testid="collapsedControl"]:hover {
+    border-color: var(--accent-cyan) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+div[data-testid="collapsedControl"] button {
+    color: var(--text-primary) !important;
+    fill: var(--text-primary) !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+div[data-testid="collapsedControl"] svg {
+    fill: var(--text-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Sidebar close collapse button styling */
+section[data-testid="stSidebar"] button {
+    color: var(--text-primary) !important;
+    background-color: rgba(255, 255, 255, 0.065) !important;
+    border: 1px solid rgba(217, 224, 234, 0.18) !important;
+    border-radius: 8px !important;
+    transition: border-color 0.2s ease !important;
+}
+
+section[data-testid="stSidebar"] button:hover {
+    border-color: var(--accent-cyan) !important;
+    background-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 </style>
