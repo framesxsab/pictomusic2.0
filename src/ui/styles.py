@@ -1630,8 +1630,8 @@ hr {
 
 /* Make the expand button very visible when sidebar is collapsed (all screens) */
 div[data-testid="collapsedControl"],
-header [data-testid="stSidebarCollapseButton"],
-header button[data-testid="stBaseButton-headerNoPadding"] {
+div[data-testid="collapsedControl"] button,
+header [data-testid="stSidebarCollapseButton"] {
     background-color: rgba(18, 19, 23, 0.95) !important;
     border: 1px solid rgba(217, 224, 234, 0.28) !important;
     border-radius: 8px !important;
@@ -1647,18 +1647,18 @@ header button[data-testid="stBaseButton-headerNoPadding"] {
     left: 0.85rem !important;
     cursor: pointer !important;
     transition: border-color 0.2s ease, background-color 0.2s ease !important;
+    pointer-events: auto !important;
 }
 
 div[data-testid="collapsedControl"]:hover,
-header [data-testid="stSidebarCollapseButton"]:hover,
-header button[data-testid="stBaseButton-headerNoPadding"]:hover {
+div[data-testid="collapsedControl"] button:hover,
+header [data-testid="stSidebarCollapseButton"]:hover {
     border-color: var(--accent-cyan) !important;
     background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 div[data-testid="collapsedControl"] button,
-header [data-testid="stSidebarCollapseButton"] button,
-header button[data-testid="stBaseButton-headerNoPadding"] button {
+header [data-testid="stSidebarCollapseButton"] {
     color: var(--text-primary) !important;
     fill: var(--text-primary) !important;
     background-color: transparent !important;
@@ -1666,14 +1666,13 @@ header button[data-testid="stBaseButton-headerNoPadding"] button {
 }
 
 div[data-testid="collapsedControl"] svg,
-header [data-testid="stSidebarCollapseButton"] svg,
-header button[data-testid="stBaseButton-headerNoPadding"] svg {
+header [data-testid="stSidebarCollapseButton"] svg {
     fill: var(--text-primary) !important;
     color: var(--text-primary) !important;
 }
 
 /* Sidebar close/collapse button styling (inside expanded sidebar) */
-section[data-testid="stSidebar"] button {
+section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
     color: var(--text-primary) !important;
     background-color: rgba(255, 255, 255, 0.065) !important;
     border: 1px solid rgba(217, 224, 234, 0.18) !important;
@@ -1681,7 +1680,7 @@ section[data-testid="stSidebar"] button {
     transition: border-color 0.2s ease !important;
 }
 
-section[data-testid="stSidebar"] button:hover {
+section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover {
     border-color: var(--accent-cyan) !important;
     background-color: rgba(255, 255, 255, 0.12) !important;
 }
