@@ -1,5 +1,5 @@
 FROM python:3.11-slim
-# Build: 2026-03-10 v3 -- set XSRF/CORS via ENV
+# Build: 2026-06-30 v4 -- pre-cache CLIP model weights
 
 # Create a new user with UID 1000
 RUN useradd -m -u 1000 user
@@ -30,6 +30,14 @@ USER user
 
 # Install Python dependencies to the user's local directory
 RUN pip install --user --no-cache-dir -r requirements.txt
+
+# Pre-download the CLIP model weights into the HF cache so they are
+# baked into the image and available offline at container start.
+RUN python -c "\
+from transformers import CLIPModel, CLIPProcessor; \
+CLIPModel.from_pretrained('openai/clip-vit-base-patch32'); \
+CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32'); \
+print('CLIP model cached successfully')"
 
 # Copy the rest of the application files with user ownership
 COPY --chown=user:user . .
