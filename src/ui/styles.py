@@ -1621,90 +1621,58 @@ hr {
     color: var(--text-primary) !important;
 }
 
-/* ── Sidebar: always visible on desktop ──────────────────────────
-   Streamlit 1.58 caches collapse state in localStorage and the
-   expand button DOM/data-testid changes across minor versions.
-   Rather than chasing selectors, we force the sidebar open and
-   hide the collapse arrow so users always have access to filters.
-   On mobile (≤ 768px) we allow native collapse behaviour.
+/* ── Sidebar: Collapsed & Expanded Controls ──────────────────────
+   Streamlit 1.58 caches collapse state in localStorage. To prevent
+   the sidebar from being stuck collapsed, we render a highly-visible
+   floating glass button in the top-left corner on all viewports
+   whenever the sidebar is collapsed.
    ─────────────────────────────────────────────────────────────── */
 
-/* Force sidebar visible on screens wider than 768px */
-@media (min-width: 769px) {
-    section[data-testid="stSidebar"] {
-        transform: none !important;
-        width: 300px !important;
-        min-width: 300px !important;
-        transition: none !important;
-    }
-
-    /* Hide the collapse (X / arrow) button inside the sidebar on desktop
-       since we're forcing it always-open */
-    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"],
-    section[data-testid="stSidebar"] button[kind="headerNoPadding"],
-    section[data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"] {
-        display: none !important;
-    }
-
-    /* Also hide the legacy collapsedControl container on desktop */
-    div[data-testid="collapsedControl"] {
-        display: none !important;
-    }
-
-    /* Hide any header-level expand buttons on desktop since sidebar is forced open */
-    header [data-testid="stSidebarCollapseButton"],
-    header button[data-testid="stBaseButton-headerNoPadding"] {
-        display: none !important;
-    }
+/* Make the expand button very visible when sidebar is collapsed (all screens) */
+div[data-testid="collapsedControl"],
+header [data-testid="stSidebarCollapseButton"],
+header button[data-testid="stBaseButton-headerNoPadding"] {
+    background-color: rgba(18, 19, 23, 0.95) !important;
+    border: 1px solid rgba(217, 224, 234, 0.28) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px rgba(241, 210, 122, 0.16) !important;
+    z-index: 999999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 42px !important;
+    height: 42px !important;
+    position: fixed !important;
+    top: 0.85rem !important;
+    left: 0.85rem !important;
+    cursor: pointer !important;
+    transition: border-color 0.2s ease, background-color 0.2s ease !important;
 }
 
-/* On mobile (≤ 768px) make the expand button very visible when sidebar is collapsed */
-@media (max-width: 768px) {
-    div[data-testid="collapsedControl"],
-    header [data-testid="stSidebarCollapseButton"],
-    header button[data-testid="stBaseButton-headerNoPadding"] {
-        background-color: rgba(18, 19, 23, 0.95) !important;
-        border: 1px solid rgba(217, 224, 234, 0.28) !important;
-        border-radius: 8px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px rgba(241, 210, 122, 0.16) !important;
-        z-index: 999999 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 42px !important;
-        height: 42px !important;
-        position: fixed !important;
-        top: 0.85rem !important;
-        left: 0.85rem !important;
-        cursor: pointer !important;
-        transition: border-color 0.2s ease, background-color 0.2s ease !important;
-    }
-
-    div[data-testid="collapsedControl"]:hover,
-    header [data-testid="stSidebarCollapseButton"]:hover,
-    header button[data-testid="stBaseButton-headerNoPadding"]:hover {
-        border-color: var(--accent-cyan) !important;
-        background-color: rgba(255, 255, 255, 0.08) !important;
-    }
-
-    div[data-testid="collapsedControl"] button,
-    header [data-testid="stSidebarCollapseButton"] button,
-    header button[data-testid="stBaseButton-headerNoPadding"] button {
-        color: var(--text-primary) !important;
-        fill: var(--text-primary) !important;
-        background-color: transparent !important;
-        border: none !important;
-    }
-
-    div[data-testid="collapsedControl"] svg,
-    header [data-testid="stSidebarCollapseButton"] svg,
-    header button[data-testid="stBaseButton-headerNoPadding"] svg {
-        fill: var(--text-primary) !important;
-        color: var(--text-primary) !important;
-    }
+div[data-testid="collapsedControl"]:hover,
+header [data-testid="stSidebarCollapseButton"]:hover,
+header button[data-testid="stBaseButton-headerNoPadding"]:hover {
+    border-color: var(--accent-cyan) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-/* Sidebar close/collapse button styling (inside expanded sidebar, mobile only) */
+div[data-testid="collapsedControl"] button,
+header [data-testid="stSidebarCollapseButton"] button,
+header button[data-testid="stBaseButton-headerNoPadding"] button {
+    color: var(--text-primary) !important;
+    fill: var(--text-primary) !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+div[data-testid="collapsedControl"] svg,
+header [data-testid="stSidebarCollapseButton"] svg,
+header button[data-testid="stBaseButton-headerNoPadding"] svg {
+    fill: var(--text-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Sidebar close/collapse button styling (inside expanded sidebar) */
 section[data-testid="stSidebar"] button {
     color: var(--text-primary) !important;
     background-color: rgba(255, 255, 255, 0.065) !important;
