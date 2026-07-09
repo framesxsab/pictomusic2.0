@@ -127,3 +127,17 @@ def test_strict_manifest_rejects_unverified_cache_without_model(temp_embeddings)
     )
 
     assert loaded is None
+
+
+def test_strict_manifest_never_rebuilds_an_unverified_existing_cache(temp_embeddings):
+    loaded = load_or_generate_embeddings(
+        dataset_size=50,
+        embeddings_path=temp_embeddings,
+        texts=["song"] * 50,
+        model=object(),
+        processor=object(),
+        device=object(),
+        strict_manifest=True,
+    )
+
+    assert loaded is None

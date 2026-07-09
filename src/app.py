@@ -49,7 +49,7 @@ st.set_page_config(
     page_title=f"{APP_TITLE} - AI Music Discovery",
     page_icon=APP_ICON,
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 st.markdown(get_global_css(), unsafe_allow_html=True)
@@ -152,7 +152,7 @@ def _render_cached_upload_preview(fallback_name: str) -> tuple[object, str]:
         st.error(f"Image validation failed: {st.session_state['cached_file_error']}")
         return None, ""
     if st.session_state.get("cached_image_bytes"):
-        st.image(st.session_state["cached_image_bytes"], use_container_width=True)
+        st.image(st.session_state["cached_image_bytes"], width="stretch")
         image_source = io.BytesIO(st.session_state["cached_image_bytes"])
         image_source.name = st.session_state.get("cached_image_file_name") or fallback_name
         image_detail = st.session_state.get("cached_image_detail", "Validated image")
@@ -262,7 +262,7 @@ with col_left:
             if upload_method == "Gallery" and not st.session_state.get("cached_file_error"):
                 _hide_native_gallery_uploader()
             image_source, image_detail = _render_cached_upload_preview(default_name)
-            if st.button("Clear image", use_container_width=True):
+            if st.button("Clear image", width="stretch"):
                 _reset_upload_widget(upload_method)
         else:
             # Clear cache when file is removed
@@ -276,12 +276,12 @@ with col_left:
         )
         url_actions = st.columns([1, 1])
         with url_actions[0]:
-            if st.button("Use sample image", use_container_width=True):
+            if st.button("Use sample image", width="stretch"):
                 st.session_state["image_url_input"] = DEMO_IMAGE_URL
                 _clear_cached_image()
                 _clear_results()
         with url_actions[1]:
-            if st.button("Clear image", use_container_width=True):
+            if st.button("Clear image", width="stretch"):
                 st.session_state["image_url_input"] = ""
                 _clear_cached_image()
                 _clear_results()
@@ -312,7 +312,7 @@ with col_left:
             if st.session_state.get("cached_file_error"):
                 st.error(f"URL validation failed: {st.session_state['cached_file_error']}")
             elif st.session_state.get("cached_image_bytes"):
-                st.image(st.session_state["cached_image_bytes"], use_container_width=True)
+                st.image(st.session_state["cached_image_bytes"], width="stretch")
                 image_source = io.BytesIO(st.session_state["cached_image_bytes"])
                 image_source.name = "url_image.jpg"
                 image_detail = st.session_state.get("cached_image_detail", "Validated image")
@@ -337,7 +337,7 @@ with col_left:
             unsafe_allow_html=True,
         )
 
-    if st.button("Analyze image", use_container_width=True, disabled=analyze_disabled):
+    if st.button("Analyze image", width="stretch", disabled=analyze_disabled):
         if image_source is None:
             st.warning("Please provide an image first.")
         elif not rate_limiter.check():
@@ -439,8 +439,8 @@ with col_left:
                     st.session_state["empty_recommendation_error"] = {
                         "message": "Recommendation engine offline.",
                         "suggestions": [
-                            "A required music search component is missing.",
-                            f"Missing components: {', '.join(recommender.missing_components())}",
+                            "A required music component is unavailable.",
+                            "Please try again shortly.",
                         ],
                     }
             except Exception as exc:
@@ -450,7 +450,7 @@ with col_left:
                     "message": "An error occurred while processing your request.",
                     "suggestions": [
                         "Please try again or use a different image.",
-                        str(exc),
+                        "If this continues, try a smaller image or return later.",
                     ],
                 }
 

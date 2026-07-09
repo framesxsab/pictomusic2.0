@@ -245,9 +245,16 @@ def load_or_generate_embeddings(
                             len(embeddings),
                         )
                         return embeddings
+                    if strict_manifest:
+                        logger.error(
+                            "Embeddings manifest mismatch (%s) - refusing stale cache in strict mode.",
+                            reason,
+                        )
+                        return None
                     logger.warning("Embeddings manifest mismatch (%s) - regenerating.", reason)
                 elif strict_manifest:
-                    logger.warning("Embeddings manifest missing or unverifiable - regenerating.")
+                    logger.error("Embeddings manifest missing or unverifiable - refusing stale cache in strict mode.")
+                    return None
                 else:
                     logger.info(
                         "Loaded cached embeddings from %s (%d vectors, legacy manifest mode)",

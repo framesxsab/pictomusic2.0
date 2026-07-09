@@ -82,6 +82,21 @@ def test_interactive_ui_does_not_expose_stack_in_loader_copy():
             assert phrase not in text, f"{phrase!r} found in {path}"
 
 
+def test_failure_guidance_does_not_expose_internal_runtime_details():
+    app_text = (PROJECT_ROOT / "src" / "app.py").read_text(encoding="utf-8")
+
+    assert 'f"Missing components:' not in app_text
+    assert '"suggestions": [\n                        "Please try again or use a different image.",\n                        str(exc),' not in app_text
+
+
+def test_hugging_face_deployment_enforces_embedding_manifest_validation():
+    docker_text = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    verifier_text = (PROJECT_ROOT / "scripts" / "verify_hf_deployment.py").read_text(encoding="utf-8")
+
+    assert "PICTOMUSIC_STRICT_EMBEDDING_MANIFEST=1" in docker_text
+    assert "Dockerfile must enforce strict embedding manifest validation" in verifier_text
+
+
 def test_results_page_does_not_render_catalog_summary():
     text = (PROJECT_ROOT / "src" / "ui" / "results.py").read_text(encoding="utf-8")
 
@@ -95,6 +110,17 @@ def test_results_styles_reserve_stable_layout_space():
     assert "scrollbar-gutter: stable" in text
     assert '[data-testid="stAudio"]' in text
     assert ".element-container:has(audio)" in text
+    assert ".song-player-container" in text
+    assert "min-height: 32px;" in text
+
+
+def test_desktop_content_canvas_is_centered_without_changing_mobile_width():
+    style_text = (PROJECT_ROOT / "src" / "ui" / "styles.py").read_text(encoding="utf-8")
+
+    assert ".block-container" in style_text
+    assert "max-width: 1280px !important;" in style_text
+    assert "margin-left: auto !important;" in style_text
+    assert "margin-right: auto !important;" in style_text
 
 
 def test_styles_do_not_reference_removed_accent_tokens():
@@ -142,7 +168,7 @@ def test_sidebar_controls_are_visible_by_default():
     app_text = (PROJECT_ROOT / "src" / "app.py").read_text(encoding="utf-8")
     sidebar_text = (PROJECT_ROOT / "src" / "ui" / "sidebar.py").read_text(encoding="utf-8")
 
-    assert 'initial_sidebar_state="expanded"' in app_text
+    assert 'initial_sidebar_state="auto"' in app_text
     assert 'initial_sidebar_state="collapsed"' not in app_text
     for control in [
         "Image source",

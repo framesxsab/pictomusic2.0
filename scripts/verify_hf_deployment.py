@@ -21,6 +21,11 @@ DATASET = ROOT / "Music.csv"
 EMBEDDINGS = ROOT / "song_embeddings_fp16.npy"
 MANIFEST = ROOT / "song_embeddings_fp16.npy.manifest.json"
 
+sys.path.insert(0, str(ROOT / "src"))
+
+from embeddings import fingerprint_texts
+from preprocess import build_enhanced_description, run_preprocessing
+
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
@@ -87,6 +92,11 @@ def main() -> int:
     require(re.search(r"\bEXPOSE\s+7860\b", dockerfile) is not None, "Dockerfile must expose port 7860", failures)
     require("--server.port=7860" in dockerfile, "Dockerfile CMD must run Streamlit on port 7860", failures)
     require("--server.address=0.0.0.0" in dockerfile, "Dockerfile CMD must bind to 0.0.0.0", failures)
+    require(
+        "PICTOMUSIC_STRICT_EMBEDDING_MANIFEST=1" in dockerfile,
+        "Dockerfile must enforce strict embedding manifest validation",
+        failures,
+    )
 
     requirements = read_text(REQUIREMENTS)
     for dependency in ["streamlit", "torch", "transformers", "faiss-cpu", "Pillow", "requests"]:
@@ -117,6 +127,16 @@ def main() -> int:
             f"embedding rows {embeddings.shape[0]} != Music.csv rows {csv_rows}", failures)
     require(embeddings.ndim == 2 and embeddings.shape[1] == 512,
             f"expected CLIP embedding shape (*, 512), got {embeddings.shape}", failures)
+
+    processed_catalog = run_preprocessing(str(DATASET), output_path=None)
+    expected_fingerprint = fingerprint_texts(
+        processed_catalog.apply(build_enhanced_description, axis=1).tolist()
+    )
+    require(
+        manifest.get("text_fingerprint") == expected_fingerprint,
+        "manifest text_fingerprint does not match the current preprocessed catalog",
+        failures,
+    )
 
     print_report(failures, warnings, csv_rows=csv_rows, embedding_shape=tuple(embeddings.shape))
     return 1 if failures else 0

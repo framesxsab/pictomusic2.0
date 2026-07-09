@@ -82,7 +82,10 @@ header[data-testid="stHeader"] {
 }
 
 .block-container {
+    width: 100% !important;
     max-width: 1280px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
     padding-top: 1.6rem !important;
     padding-bottom: 4rem !important;
 }
@@ -1328,6 +1331,8 @@ hr {
 .no-preview {
     display: inline-flex;
     align-items: center;
+    min-height: 32px;
+    box-sizing: border-box;
     gap: 0.6rem;
     padding: 0.5rem 0.85rem;
     background: rgba(255, 255, 255, 0.06);
@@ -1601,6 +1606,9 @@ hr {
 .song-player-container {
     margin-top: 0.8rem;
     width: 100%;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
 }
 
 .song-card audio {
